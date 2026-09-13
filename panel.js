@@ -83,15 +83,24 @@ async function boot(user){
 }
 
 function navIcon(id){
-  return ({solicitudes:'✉',pacientes:'♙',agenda:'▣',profesionales:'♙',servicios:'✦',horarios:'◷',asociaciones:'◎'})[id]||'•';
+  const icons={
+    solicitudes:`<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 6.5h17v11h-17z"/><path d="m4 7 8 6 8-6"/></svg>`,
+    pacientes:`<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="3.2"/><path d="M5.5 20c.4-4.2 2.5-6.3 6.5-6.3s6.1 2.1 6.5 6.3"/></svg>`,
+    agenda:`<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="5.5" width="16" height="14" rx="2"/><path d="M8 3.5v4M16 3.5v4M4 9.5h16"/><path d="M8 13h3M13 13h3M8 16h3"/></svg>`,
+    profesionales:`<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3"/><path d="M3.8 19c.4-3.7 2.1-5.5 5.2-5.5 2.1 0 3.6.8 4.5 2.4"/><path d="M17.5 13v7M14 16.5h7"/></svg>`,
+    servicios:`<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v18M3 12h18"/><circle cx="12" cy="12" r="7.5"/></svg>`,
+    horarios:`<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M12 7v5l3.5 2"/></svg>`,
+    asociaciones:`<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="8" cy="9" r="2.5"/><circle cx="16" cy="9" r="2.5"/><path d="M3.5 19c.2-3.2 1.7-4.8 4.5-4.8 1.8 0 3 .6 3.8 1.8M20.5 19c-.2-3.2-1.7-4.8-4.5-4.8-1.8 0-3 .6-3.8 1.8"/></svg>`
+  };
+  return icons[id]||'';
 }
 function renderNav(){
   // En móvil quedan cinco accesos: Solicitudes, Pacientes, Citas,
   // Profesionales y Más. Servicios/Horarios/Asociaciones viven dentro de Más.
-  const admin=[['solicitudes','Solicitudes'],['pacientes','Pacientes'],['agenda','Citas'],['profesionales','Profesionales'],['servicios','Servicios'],['horarios','Horarios'],['asociaciones','Asociaciones']];
+  const admin=[['solicitudes','Solicitudes'],['pacientes','Pacientes'],['agenda','Citas'],['profesionales','Profes.'],['servicios','Servicios'],['horarios','Horarios'],['asociaciones','Asociaciones']];
   const pro=[['pacientes','Mis pacientes'],['agenda','Mis citas'],['horarios','Mi disponibilidad']];
   const links=state.profile.rol==='admin'?admin:pro;
-  sidebar.innerHTML=links.map(([id,label],i)=>`<button class="nav-btn ${state.profile.rol==='admin'&&i>3?'nav-extra':''}" data-page="${id}"><span class="nav-icon">${navIcon(id)}</span><span class="nav-label">${label}</span></button>`).join('') + (state.profile.rol==='admin'?`<button class="nav-btn nav-more" id="navMore" type="button"><span class="nav-icon">•••</span><span class="nav-label">Más</span></button>`:'');
+  sidebar.innerHTML=links.map(([id,label],i)=>`<button class="nav-btn ${state.profile.rol==='admin'&&i>3?'nav-extra':''}" data-page="${id}"><span class="nav-icon">${navIcon(id)}</span><span class="nav-label">${label}</span></button>`).join('') + (state.profile.rol==='admin'?`<button class="nav-btn nav-more" id="navMore" type="button"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/></svg></span><span class="nav-label">Más</span></button>`:'');
   $$('.nav-btn[data-page]',sidebar).forEach(b=>b.onclick=()=>go(b.dataset.page));
   if($('#navMore')) $('#navMore').onclick=toggleMoreMenu;
   renderMoreMenu();

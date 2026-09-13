@@ -128,3 +128,7 @@ El bucket de Storage está pensado para **documentos base que se comparten con p
 - `PLANTILLA_MENSAJE_CONSENTIMIENTO.txt` — texto de referencia para WhatsApp.
 - `supabase/02_mejoras_panel.sql` — Servicios/Citas.
 - `supabase/03_storage_documentos.sql` — carga de documentos.
+
+
+## Corrección de navegación móvil
+La barra inferior fue fijada a 66 px de alto, con cinco accesos iguales, iconos SVG de 20 px y etiquetas de 9.5 px. El CSS correctivo está al final de `asset/styles.css`.
