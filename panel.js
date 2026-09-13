@@ -72,21 +72,23 @@ async function boot(user){
   const {data:profile,error}=await db.from('perfiles').select('*').eq('id',user.id).single();
   if(error||!profile||!profile.activo){await db.auth.signOut();throw new Error('Usuario sin perfil activo');}
   state.profile=profile;
-  if(profile.rol==='profesional'){
-    const {data}=await db.from('profesionales').select('*').eq('usuario_id',user.id).eq('activo',true).single();
-    state.professional=data||null;
-    if(!state.professional) throw new Error('La cuenta no está vinculada a un profesional.');
-  }
+  // Un administrador también puede atender pacientes. Si su cuenta está
+  // vinculada a un registro de profesionales, lo cargamos como perfil clínico.
+  const {data:professional}=await db.from('profesionales').select('*').eq('usuario_id',user.id).eq('activo',true).maybeSingle();
+  state.professional=professional||null;
+  if(profile.rol==='profesional'&&!state.professional) throw new Error('La cuenta no está vinculada a un profesional.');
   loginView.classList.add('hidden');appView.classList.remove('hidden');
   $('#userEmail').textContent=user.email||'';$('#roleLabel').textContent=profile.rol==='admin'?'Administración':'Profesional';
   renderNav(); await go(profile.rol==='admin'?'solicitudes':'pacientes');
 }
 
 function navIcon(id){
-  return ({solicitudes:'✉',agenda:'▣',profesionales:'♙',servicios:'✦',horarios:'◷',asociaciones:'◎',pacientes:'♙'})[id]||'•';
+  return ({solicitudes:'✉',pacientes:'♙',agenda:'▣',profesionales:'♙',servicios:'✦',horarios:'◷',asociaciones:'◎'})[id]||'•';
 }
 function renderNav(){
-  const admin=[['solicitudes','Solicitudes'],['agenda','Citas'],['profesionales','Profesionales'],['servicios','Servicios'],['horarios','Horarios'],['asociaciones','Asociaciones']];
+  // En móvil quedan cinco accesos: Solicitudes, Pacientes, Citas,
+  // Profesionales y Más. Servicios/Horarios/Asociaciones viven dentro de Más.
+  const admin=[['solicitudes','Solicitudes'],['pacientes','Pacientes'],['agenda','Citas'],['profesionales','Profesionales'],['servicios','Servicios'],['horarios','Horarios'],['asociaciones','Asociaciones']];
   const pro=[['pacientes','Mis pacientes'],['agenda','Mis citas'],['horarios','Mi disponibilidad']];
   const links=state.profile.rol==='admin'?admin:pro;
   sidebar.innerHTML=links.map(([id,label],i)=>`<button class="nav-btn ${state.profile.rol==='admin'&&i>3?'nav-extra':''}" data-page="${id}"><span class="nav-icon">${navIcon(id)}</span><span class="nav-label">${label}</span></button>`).join('') + (state.profile.rol==='admin'?`<button class="nav-btn nav-more" id="navMore" type="button"><span class="nav-icon">•••</span><span class="nav-label">Más</span></button>`:'');
@@ -97,7 +99,7 @@ function renderNav(){
 function renderMoreMenu(){
   if(!moreMenu)return;
   if(state.profile?.rol!=='admin'){moreMenu.classList.add('hidden');moreMenu.innerHTML='';return;}
-  moreMenu.innerHTML=`<button data-more-page="horarios"><span>◷</span> Horarios</button><button data-more-page="asociaciones"><span>◎</span> Asociaciones</button>`;
+  moreMenu.innerHTML=`<button data-more-page="servicios"><span>✦</span> Servicios</button><button data-more-page="horarios"><span>◷</span> Horarios</button><button data-more-page="asociaciones"><span>◎</span> Asociaciones</button>`;
   $$('[data-more-page]',moreMenu).forEach(b=>b.onclick=()=>{moreMenu.classList.add('hidden');go(b.dataset.morePage);});
 }
 function toggleMoreMenu(){
@@ -108,15 +110,15 @@ function toggleMoreMenu(){
 document.addEventListener('click',e=>{if(!moreMenu||moreMenu.classList.contains('hidden'))return;if(e.target.closest('#moreMenu')||e.target.closest('#navMore'))return;moreMenu.classList.add('hidden');});
 async function go(name){
   $$('.nav-btn[data-page]',sidebar).forEach(b=>b.classList.toggle('active',b.dataset.page===name));
-  if($('#navMore')) $('#navMore').classList.toggle('active',['horarios','asociaciones'].includes(name));
+  if($('#navMore')) $('#navMore').classList.toggle('active',['servicios','horarios','asociaciones'].includes(name));
   if(moreMenu)moreMenu.classList.add('hidden');
   page.innerHTML='<div class="empty">Cargando...</div>';
   if(name==='solicitudes')return renderRequests();
+  if(name==='pacientes')return renderPatients();
   if(name==='agenda')return renderAppointments();
   if(name==='profesionales')return renderProfessionals();
   if(name==='servicios')return renderServices();
   if(name==='asociaciones')return renderAssociations();
-  if(name==='pacientes')return renderMyPatients();
   if(name==='horarios')return state.profile.rol==='admin'?renderAdminSchedules():renderSchedules();
 }
 
@@ -125,47 +127,60 @@ async function loadAssociations(){const {data,error}=await db.from('asociaciones
 async function loadServices(includeInactive=true){let q=db.from('servicios').select('*, profesional_servicios(profesional_id,activo)').order('nombre');if(!includeInactive)q=q.eq('activo',true);const {data,error}=await q;if(error)throw error;state.services=data||[];}
 
 async function renderRequests(){
-  try{await Promise.all([loadProfessionals(),loadAssociations()]);
-    const {data,error}=await db.from('solicitudes_atencion').select('*, profesionales(nombre,whatsapp), asociaciones(nombre,consentimiento_url)').order('created_at',{ascending:false});if(error)throw error; state.requests=data||[];
-    const pending=state.requests.filter(r=>r.estado==='pendiente').length, assigned=state.requests.filter(r=>r.estado==='asignada').length, scheduled=state.requests.filter(r=>r.estado==='cita_agendada').length;
-    page.innerHTML=`<div class="section-head"><div><h2>Solicitudes de atención</h2><p>El paciente solo deja nombre y teléfono. Aquí se asigna al profesional.</p></div></div>
-      <div class="stats"><div class="stat"><strong>${state.requests.length}</strong><span>Total</span></div><div class="stat"><strong>${pending}</strong><span>Pendientes</span></div><div class="stat"><strong>${assigned}</strong><span>Asignadas</span></div><div class="stat"><strong>${scheduled}</strong><span>Con cita</span></div></div>
-      <div class="toolbar"><select id="reqFilter"><option value="all">Todos los estados</option><option value="pendiente">Pendientes</option><option value="asignada">Asignadas</option><option value="contactada">Contactadas</option><option value="cita_agendada">Con cita</option></select><input id="reqSearch" placeholder="Buscar paciente o teléfono"></div>
+  try{
+    await Promise.all([loadProfessionals(),loadAssociations()]);
+    const {data,error}=await db.from('solicitudes_atencion').select('*, profesionales(nombre,whatsapp), asociaciones(nombre,consentimiento_url)').neq('estado','cerrada').order('created_at',{ascending:false});
+    if(error)throw error;
+    state.requests=data||[];
+    const pending=state.requests.filter(r=>r.estado==='pendiente').length;
+    const assigned=state.requests.filter(r=>r.profesional_id).length;
+    page.innerHTML=`<div class="section-head"><div><h2>Solicitudes</h2><p>Aquí administración recibe la solicitud, asigna al profesional y puede contactar al paciente.</p></div></div>
+      <div class="stats request-stats"><div class="stat"><strong>${state.requests.length}</strong><span>Total</span></div><div class="stat"><strong>${pending}</strong><span>Sin asignar</span></div><div class="stat"><strong>${assigned}</strong><span>Asignadas</span></div></div>
+      <div class="toolbar"><select id="reqFilter"><option value="all">Todas</option><option value="pendiente">Sin asignar</option><option value="assigned">Asignadas</option></select><input id="reqSearch" placeholder="Buscar paciente o teléfono"></div>
       <div class="list" id="requestList"></div>`;
-    $('#reqFilter').onchange=paintRequests;$('#reqSearch').oninput=paintRequests;paintRequests();
+    $('#reqFilter').onchange=paintRequests;
+    $('#reqSearch').oninput=paintRequests;
+    paintRequests();
   }catch(e){console.error(e);page.innerHTML='<div class="message error">No se pudieron cargar las solicitudes.</div>';}
 }
 function paintRequests(){
   const filter=$('#reqFilter')?.value||'all', q=($('#reqSearch')?.value||'').toLowerCase().trim();
-  const rows=state.requests.filter(r=>(filter==='all'||r.estado===filter)&&(!q||r.nombre.toLowerCase().includes(q)||r.telefono.includes(q)));
-  const box=$('#requestList'); if(!rows.length){box.innerHTML='<div class="empty">No hay solicitudes con este filtro.</div>';return;}
+  const rows=state.requests.filter(r=>{
+    const stateOk=filter==='all'||(filter==='pendiente'&&!r.profesional_id)||(filter==='assigned'&&!!r.profesional_id);
+    return stateOk&&(!q||r.nombre.toLowerCase().includes(q)||r.telefono.includes(q));
+  });
+  const box=$('#requestList');
+  if(!rows.length){box.innerHTML='<div class="empty">No hay solicitudes con este filtro.</div>';return;}
   box.innerHTML=rows.map(r=>requestCard(r)).join('');
   $$('[data-assign]').forEach(b=>b.onclick=()=>openAssign(b.dataset.assign));
-  $$('[data-wa-pro]').forEach(b=>b.onclick=()=>waProfessional(b.dataset.waPro));
   $$('[data-wa-patient]').forEach(b=>b.onclick=()=>waPatient(b.dataset.waPatient));
-  $$('[data-docs]').forEach(b=>b.onclick=()=>openDocuments(b.dataset.docs));
-  $$('[data-close-request]').forEach(b=>b.onclick=()=>setRequestStatus(b.dataset.closeRequest,'cerrada'));
 }
 function requestCard(r){
-  const pro=r.profesionales?.nombre||'Sin asignar', assoc=r.asociaciones?.nombre||'Sin asociación';
-  return `<article class="item"><div class="item-top"><div><h3>${esc(r.nombre)}</h3><div class="meta">📱 ${esc(r.telefono)}<br>Profesional: <strong>${esc(pro)}</strong><br>Asociación: ${esc(assoc)}<br>Recibida: ${new Date(r.created_at).toLocaleString('es-MX')}</div></div>${statusBadge(r.estado)}</div>
-    <div class="progress"><span class="progress-step ${r.profesional_id?'done':''}">Profesional</span><span class="progress-step ${r.consentimiento_estado==='completado'?'done':''}">Consentimiento</span><span class="progress-step ${r.formularios_estado==='completado'?'done':''}">Forms</span><span class="progress-step ${r.estado==='cita_agendada'?'done':''}">Cita</span></div>
-    <div class="actions"><button class="btn btn-soft" data-assign="${r.id}">${r.profesional_id?'Reasignar':'Asignar profesional'}</button>${r.profesional_id?`<button class="btn btn-whatsapp" data-wa-pro="${r.id}">WhatsApp profesional</button>`:''}<button class="btn btn-whatsapp" data-wa-patient="${r.id}">WhatsApp paciente</button><button class="btn btn-light" data-docs="${r.id}">Consentimiento / Formularios</button>${r.estado!=='cerrada'?`<button class="btn btn-danger" data-close-request="${r.id}">Cerrar</button>`:''}</div></article>`;
+  const pro=r.profesionales?.nombre||'Sin asignar';
+  return `<article class="item request-card"><div class="item-top"><div><h3>${esc(r.nombre)}</h3><div class="meta">📱 ${esc(r.telefono)}<br>Profesional: <strong>${esc(pro)}</strong><br>Recibida: ${new Date(r.created_at).toLocaleString('es-MX')}</div></div>${r.profesional_id?'<span class="badge ok">Asignada</span>':'<span class="badge pending">Pendiente</span>'}</div>
+    <div class="request-actions"><button class="btn btn-soft" data-assign="${r.id}">${r.profesional_id?'Cambiar profesional':'Asignar profesional'}</button><button class="btn btn-whatsapp" data-wa-patient="${r.id}">WhatsApp paciente</button></div></article>`;
 }
 function openAssign(id){
   const r=state.requests.find(x=>x.id===id); if(!r)return;
-  showModal(`<div class="modal-head"><div><h3>Asignar profesional</h3><div class="help">${esc(r.nombre)} · ${esc(r.telefono)}</div></div><button class="icon-btn" id="x">✕</button></div>
+  showModal(`<div class="modal-head"><div><h3>${r.profesional_id?'Cambiar asignación':'Asignar profesional'}</h3><div class="help">${esc(r.nombre)} · ${esc(r.telefono)}</div></div><button class="icon-btn" id="x">✕</button></div>
     <div class="field"><label>Profesional</label><select id="assignPro"><option value="">Seleccionar...</option>${state.professionals.map(p=>`<option value="${p.id}" ${r.profesional_id===p.id?'selected':''}>${esc(p.nombre)}</option>`).join('')}</select></div>
-    <div class="field"><label>Asociación (opcional por ahora)</label><select id="assignAssoc"><option value="">Sin asociación</option>${state.associations.map(a=>`<option value="${a.id}" ${r.asociacion_id===a.id?'selected':''}>${esc(a.nombre)}</option>`).join('')}</select></div>
+    <div class="field"><label>Asociación</label><select id="assignAssoc"><option value="">Sin asociación</option>${state.associations.map(a=>`<option value="${a.id}" ${r.asociacion_id===a.id?'selected':''}>${esc(a.nombre)}</option>`).join('')}</select><div class="help">La asociación define el consentimiento y formularios que aparecerán después en Pacientes.</div></div>
     <button class="btn btn-primary btn-block" id="saveAssign">Guardar asignación</button>`);
-  $('#x').onclick=closeModal; $('#saveAssign').onclick=async()=>{
-    const professional_id=$('#assignPro').value||null, asociacion_id=$('#assignAssoc').value||null; if(!professional_id)return alert('Selecciona un profesional.');
-    const {error}=await db.from('solicitudes_atencion').update({profesional_id,asociacion_id,estado:'asignada',fecha_asignacion:new Date().toISOString()}).eq('id',id);if(error)return alert(error.message);closeModal();notify('Paciente asignado.');renderRequests();
+  $('#x').onclick=closeModal;
+  $('#saveAssign').onclick=async()=>{
+    const professional_id=$('#assignPro').value||null, asociacion_id=$('#assignAssoc').value||null;
+    if(!professional_id)return alert('Selecciona un profesional.');
+    const {error}=await db.from('solicitudes_atencion').update({profesional_id,asociacion_id,estado:'asignada',fecha_asignacion:new Date().toISOString()}).eq('id',id);
+    if(error)return alert(error.message);
+    closeModal();notify('Paciente asignado. Ya aparece en Pacientes.');renderRequests();
   };
 }
-function waProfessional(id){const r=state.requests.find(x=>x.id===id);const p=state.professionals.find(x=>x.id===r?.profesional_id);if(!r||!p?.whatsapp)return alert('El profesional no tiene WhatsApp registrado.');const text=`Hola ${p.nombre} 😊\n\nTe asigné un nuevo paciente de Red de Atención Psicológica Humanista.\n\n👤 Nombre: ${r.nombre}\n📱 Teléfono: ${r.telefono}\n\nPor favor, ponte en contacto con la persona para acordar su cita.`;window.open(`https://wa.me/${waPhone(p.whatsapp)}?text=${encodeURIComponent(text)}`,'_blank');}
-function waPatient(id){const r=state.requests.find(x=>x.id===id);if(!r)return;const p=state.professionals.find(x=>x.id===r.profesional_id);const text=p?`Hola ${r.nombre} 😊 Somos de Red de Atención Psicológica Humanista. Tu solicitud fue asignada a ${p.nombre}. Nos pondremos en contacto contigo para acordar tu cita.`:`Hola ${r.nombre} 😊 Recibimos tu solicitud en Red de Atención Psicológica Humanista. Un profesional se pondrá en contacto contigo para agendar tu cita.`;window.open(`https://wa.me/${waPhone(r.telefono)}?text=${encodeURIComponent(text)}`,'_blank');}
-async function setRequestStatus(id,estado){const {error}=await db.from('solicitudes_atencion').update({estado}).eq('id',id);if(error)return notify(error.message,'error');notify('Estado actualizado.');renderRequests();}
+function waPatient(id){
+  const r=state.requests.find(x=>x.id===id);if(!r)return;
+  const p=state.professionals.find(x=>x.id===r.profesional_id);
+  const text=p?`Hola ${r.nombre} 😊 Somos de Red de Atención Psicológica Humanista. Tu solicitud fue asignada a ${p.nombre}. Nos pondremos en contacto contigo para continuar tu proceso.`:`Hola ${r.nombre} 😊 Recibimos tu solicitud en Red de Atención Psicológica Humanista. En breve te asignaremos a un profesional.`;
+  window.open(`https://wa.me/${waPhone(r.telefono)}?text=${encodeURIComponent(text)}`,'_blank');
+}
 
 function consentLandingUrl(formUrl,request,association){
   if(!formUrl)return '';
@@ -176,36 +191,71 @@ function consentLandingUrl(formUrl,request,association){
   return u.toString();
 }
 
-function openDocuments(id){
-  const r=state.requests.find(x=>x.id===id), a=state.associations.find(x=>x.id===r?.asociacion_id); if(!r)return;
-  const forms=a?.formularios||[];
-  showModal(`<div class="modal-head"><div><h3>Consentimiento y formularios</h3><div class="help">${esc(r.nombre)}</div></div><button class="icon-btn" id="x">✕</button></div>
-    ${!a?'<div class="message error">Primero asigna una asociación al paciente.</div>':`<div class="item"><strong>${esc(a.nombre)}</strong><div class="meta">Consentimiento: ${a.consentimiento_url?'Configurado':'Sin enlace'} · Formularios: ${forms.length}</div></div>
-    <div class="divider"></div><h3>1. Consentimiento informado</h3><div class="meta">Estado: <strong>${esc(r.consentimiento_estado)}</strong></div><div class="actions"><button class="btn btn-whatsapp" id="sendConsent" ${!a.consentimiento_url?'disabled':''}>Enviar por WhatsApp</button><button class="btn btn-success" id="doneConsent">Marcar completado</button></div>
-    <div class="divider"></div><h3>2. Formularios / documentos</h3><div class="meta">Estado: <strong>${esc(r.formularios_estado)}</strong></div>${forms.map(f=>`<div class="meta">• ${esc(f.nombre)}</div>`).join('')||'<div class="meta">No hay formularios o documentos configurados.</div>'}<div class="actions"><button class="btn btn-whatsapp" id="sendForms" ${r.consentimiento_estado!=='completado'||!forms.length?'disabled':''}>Enviar formularios</button><button class="btn btn-success" id="doneForms" ${r.consentimiento_estado!=='completado'?'disabled':''}>Marcar completados</button></div>`}`);
-  $('#x').onclick=closeModal;if(!a)return;
-  $('#sendConsent').onclick=async()=>{const link=consentLandingUrl(a.consentimiento_url,r,a);const text=`Hola ${r.nombre} 😊 Antes de continuar con tu proceso, revisa la información de consentimiento en el siguiente enlace. Al presionar “Aceptar y continuar” se abrirá el Google Forms para registrar tu consentimiento:\n\n${link}\n\nPor favor completa el formulario y al terminar avísanos por este medio.`;window.open(`https://wa.me/${waPhone(r.telefono)}?text=${encodeURIComponent(text)}`,'_blank');await db.from('solicitudes_atencion').update({consentimiento_estado:'enviado',consentimiento_enviado_at:new Date().toISOString()}).eq('id',r.id);};
-  $('#doneConsent').onclick=async()=>{await db.from('solicitudes_atencion').update({consentimiento_estado:'completado',consentimiento_completado_at:new Date().toISOString()}).eq('id',r.id);closeModal();notify('Consentimiento marcado como completado.');renderRequests();};
-  $('#sendForms').onclick=async()=>{const links=forms.map((f,i)=>`${i+1}. ${f.nombre}: ${f.url}`).join('\n');const text=`Hola ${r.nombre} 😊 Ya podemos continuar con los formularios y documentos de ${a.nombre}:\n\n${links}\n\nPor favor revísalos o complétalos antes de tu atención, según corresponda.`;window.open(`https://wa.me/${waPhone(r.telefono)}?text=${encodeURIComponent(text)}`,'_blank');await db.from('solicitudes_atencion').update({formularios_estado:'enviado',formularios_enviados_at:new Date().toISOString()}).eq('id',r.id);};
-  $('#doneForms').onclick=async()=>{await db.from('solicitudes_atencion').update({formularios_estado:'completado',formularios_completados_at:new Date().toISOString()}).eq('id',r.id);closeModal();notify('Formularios marcados como completados.');renderRequests();};
+async function renderPatients(){
+  try{
+    if(state.profile.rol==='admin')await loadProfessionals();
+    let q=db.from('solicitudes_atencion').select('*, profesionales(nombre,whatsapp), asociaciones(nombre,consentimiento_url, formularios(*))').not('profesional_id','is',null).neq('estado','cerrada').order('created_at',{ascending:false});
+    if(state.profile.rol==='profesional')q=q.eq('profesional_id',state.professional.id);
+    const {data,error}=await q;
+    if(error)throw error;
+    state.requests=(data||[]).map(r=>({...r,asociaciones:r.asociaciones?{...r.asociaciones,formularios:(r.asociaciones.formularios||[]).filter(f=>f.activo).sort((a,b)=>a.orden-b.orden)}:null}));
+    const admin=state.profile.rol==='admin';
+    page.innerHTML=`<div class="section-head"><div><h2>${admin?'Pacientes':'Mis pacientes'}</h2><p>${admin?'Seguimiento clínico y administrativo de los pacientes ya asignados.':'Aquí das seguimiento a tus pacientes asignados.'}</p></div></div>
+      ${admin?`<div class="toolbar patient-toolbar"><select id="patientPro"><option value="all">Todos los profesionales</option>${state.professional?`<option value="mine">Mis pacientes</option>`:''}${state.professionals.map(p=>`<option value="${p.id}">${esc(p.nombre)}</option>`).join('')}</select><input id="patientSearch" placeholder="Buscar paciente o teléfono"></div>`:`<div class="toolbar patient-toolbar"><input id="patientSearch" placeholder="Buscar paciente o teléfono"></div>`}
+      <div class="list" id="patientList"></div>`;
+    const paint=()=>paintPatients();
+    if($('#patientPro'))$('#patientPro').onchange=paint;
+    $('#patientSearch').oninput=paint;
+    paint();
+  }catch(e){console.error(e);page.innerHTML='<div class="message error">No se pudieron cargar los pacientes.</div>';}
 }
-
-async function renderMyPatients(){
-  const {data,error}=await db.from('solicitudes_atencion').select('*, asociaciones(nombre,consentimiento_url, formularios(*))').eq('profesional_id',state.professional.id).neq('estado','cerrada').order('created_at',{ascending:false});if(error){page.innerHTML='<div class="message error">No se pudieron cargar tus pacientes.</div>';return;}state.requests=data||[];
-  page.innerHTML=`<div class="section-head"><div><h2>Mis pacientes</h2><p>Contacta al paciente y registra la cita cuando acuerden día y hora.</p></div></div><div class="list">${state.requests.length?state.requests.map(r=>`<article class="item"><div class="item-top"><div><h3>${esc(r.nombre)}</h3><div class="meta">📱 ${esc(r.telefono)}<br>Asociación: ${esc(r.asociaciones?.nombre||'Pendiente')}</div></div>${statusBadge(r.estado)}</div><div class="actions"><button class="btn btn-whatsapp" data-pro-contact="${r.id}">Contactar paciente</button><button class="btn btn-primary" data-create-appt="${r.id}">${r.estado==='cita_agendada'?'Nueva cita':'Registrar cita'}</button><button class="btn btn-light" data-pro-docs="${r.id}">Documentos</button></div></article>`).join(''):'<div class="empty">Aún no tienes pacientes asignados.</div>'}</div>`;
-  $$('[data-pro-contact]').forEach(b=>b.onclick=()=>{const r=state.requests.find(x=>x.id===b.dataset.proContact);const text=`Hola ${r.nombre} 😊 Soy ${state.professional.nombre}, profesional de Red de Atención Psicológica Humanista. Me asignaron tu solicitud de atención. Me gustaría acordar contigo el día y horario de tu cita.`;window.open(`https://wa.me/${waPhone(r.telefono)}?text=${encodeURIComponent(text)}`,'_blank');db.from('solicitudes_atencion').update({estado:'contactada'}).eq('id',r.id);});
-  $$('[data-create-appt]').forEach(b=>b.onclick=()=>openAppointmentForm(b.dataset.createAppt));
-  $$('[data-pro-docs]').forEach(b=>b.onclick=()=>openProDocuments(b.dataset.proDocs));
+function paintPatients(){
+  const qtxt=($('#patientSearch')?.value||'').toLowerCase().trim();
+  const filter=$('#patientPro')?.value||'all';
+  const rows=state.requests.filter(r=>{
+    let proOk=true;
+    if(filter==='mine')proOk=!!state.professional&&r.profesional_id===state.professional.id;
+    else if(filter!=='all')proOk=r.profesional_id===filter;
+    return proOk&&(!qtxt||r.nombre.toLowerCase().includes(qtxt)||r.telefono.includes(qtxt));
+  });
+  const box=$('#patientList');
+  if(!rows.length){box.innerHTML='<div class="empty">No hay pacientes con este filtro.</div>';return;}
+  box.innerHTML=rows.map(r=>patientCard(r)).join('');
+  $$('[data-patient-wa]').forEach(b=>b.onclick=()=>contactPatient(b.dataset.patientWa));
+  $$('[data-patient-docs]').forEach(b=>b.onclick=()=>openPatientDocuments(b.dataset.patientDocs));
+  $$('[data-patient-appt]').forEach(b=>b.onclick=()=>openAppointmentForm(b.dataset.patientAppt));
+  $$('[data-patient-close]').forEach(b=>b.onclick=()=>closePatientProcess(b.dataset.patientClose));
 }
-
-function openProDocuments(id){
+function patientCard(r){
+  const admin=state.profile.rol==='admin';
+  const pro=r.profesionales?.nombre||'Profesional';
+  const assoc=r.asociaciones?.nombre||'Sin asociación';
+  return `<article class="item patient-card"><div class="item-top"><div><h3>${esc(r.nombre)}</h3><div class="meta">📱 ${esc(r.telefono)}${admin?`<br>Profesional: <strong>${esc(pro)}</strong>`:''}<br>Asociación: ${esc(assoc)}</div></div>${statusBadge(r.estado)}</div>
+    <div class="progress patient-progress"><span class="progress-step ${r.consentimiento_estado==='completado'?'done':''}">Consentimiento</span><span class="progress-step ${r.formularios_estado==='completado'?'done':''}">Formularios</span><span class="progress-step ${r.estado==='cita_agendada'?'done':''}">Cita</span></div>
+    <div class="patient-actions"><button class="btn btn-whatsapp" data-patient-wa="${r.id}">WhatsApp</button><button class="btn btn-soft" data-patient-docs="${r.id}">Seguimiento</button><button class="btn btn-primary" data-patient-appt="${r.id}">Agendar cita</button><button class="btn btn-danger" data-patient-close="${r.id}">Cerrar proceso</button></div></article>`;
+}
+function contactPatient(id){
+  const r=state.requests.find(x=>x.id===id);if(!r)return;
+  const pro=r.profesionales?.nombre||state.professional?.nombre||'Red Humanista';
+  const text=`Hola ${r.nombre} 😊 Soy ${pro}, de Red de Atención Psicológica Humanista. Me pongo en contacto contigo para dar seguimiento a tu proceso de atención.`;
+  window.open(`https://wa.me/${waPhone(r.telefono)}?text=${encodeURIComponent(text)}`,'_blank');
+  if(r.estado==='asignada')db.from('solicitudes_atencion').update({estado:'contactada'}).eq('id',r.id);
+}
+async function closePatientProcess(id){
+  const r=state.requests.find(x=>x.id===id);if(!r)return;
+  if(!confirm(`¿Cerrar el proceso de ${r.nombre}?`))return;
+  const {error}=await db.from('solicitudes_atencion').update({estado:'cerrada'}).eq('id',id);
+  if(error)return notify(error.message,'error');
+  notify('Proceso cerrado.');renderPatients();
+}
+function openPatientDocuments(id){
   const r=state.requests.find(x=>x.id===id),a=r?.asociaciones,forms=(a?.formularios||[]).filter(f=>f.activo).sort((x,y)=>x.orden-y.orden);if(!r)return;
-  showModal(`<div class="modal-head"><div><h3>Documentación</h3><div class="help">${esc(r.nombre)}</div></div><button class="icon-btn" id="x">✕</button></div>${!a?'<div class="message error">El administrador todavía no asigna una asociación.</div>':`<div class="meta"><strong>${esc(a.nombre)}</strong></div><div class="divider"></div><div class="meta">Consentimiento: <strong>${esc(r.consentimiento_estado)}</strong></div><div class="actions"><button id="pc" class="btn btn-whatsapp" ${!a.consentimiento_url?'disabled':''}>Enviar consentimiento</button><button id="pcDone" class="btn btn-success">Marcar completado</button></div><div class="divider"></div><div class="meta">Formularios: <strong>${esc(r.formularios_estado)}</strong></div>${forms.map(f=>`<div class="meta">• ${esc(f.nombre)}</div>`).join('')}<div class="actions"><button id="pf" class="btn btn-whatsapp" ${r.consentimiento_estado!=='completado'||!forms.length?'disabled':''}>Enviar formularios</button><button id="pfDone" class="btn btn-success" ${r.consentimiento_estado!=='completado'?'disabled':''}>Marcar completados</button></div>`}`);
+  showModal(`<div class="modal-head"><div><h3>Seguimiento del paciente</h3><div class="help">${esc(r.nombre)}</div></div><button class="icon-btn" id="x">✕</button></div>${!a?'<div class="message error">Administración debe asignar primero una asociación para habilitar consentimiento y formularios.</div>':`<div class="patient-summary"><strong>${esc(a.nombre)}</strong><span>${esc(r.profesionales?.nombre||state.professional?.nombre||'')}</span></div><div class="divider"></div><div class="follow-block"><div><span class="follow-number">1</span><strong>Consentimiento informado</strong><small>Estado: ${esc(r.consentimiento_estado)}</small></div><div class="follow-actions"><button id="pc" class="btn btn-whatsapp" ${!a.consentimiento_url?'disabled':''}>Enviar</button><button id="pcDone" class="btn btn-success">Marcar completado</button></div></div><div class="divider"></div><div class="follow-block"><div><span class="follow-number">2</span><strong>Formularios / documentos</strong><small>Estado: ${esc(r.formularios_estado)}</small>${forms.length?`<div class="form-mini-list">${forms.map(f=>`<span>• ${esc(f.nombre)}</span>`).join('')}</div>`:'<div class="help">No hay formularios configurados.</div>'}</div><div class="follow-actions"><button id="pf" class="btn btn-whatsapp" ${r.consentimiento_estado!=='completado'||!forms.length?'disabled':''}>Enviar</button><button id="pfDone" class="btn btn-success" ${r.consentimiento_estado!=='completado'?'disabled':''}>Marcar completados</button></div></div>`}`);
   $('#x').onclick=closeModal;if(!a)return;
   $('#pc').onclick=async()=>{const link=consentLandingUrl(a.consentimiento_url,r,a);const text=`Hola ${r.nombre} 😊 Antes de continuar, revisa el consentimiento informado. Al presionar “Aceptar y continuar” se abrirá el Google Forms para registrar tu consentimiento:\n\n${link}`;window.open(`https://wa.me/${waPhone(r.telefono)}?text=${encodeURIComponent(text)}`,'_blank');await db.from('solicitudes_atencion').update({consentimiento_estado:'enviado',consentimiento_enviado_at:new Date().toISOString()}).eq('id',r.id);};
-  $('#pcDone').onclick=async()=>{await db.from('solicitudes_atencion').update({consentimiento_estado:'completado',consentimiento_completado_at:new Date().toISOString()}).eq('id',r.id);closeModal();renderMyPatients();};
+  $('#pcDone').onclick=async()=>{await db.from('solicitudes_atencion').update({consentimiento_estado:'completado',consentimiento_completado_at:new Date().toISOString()}).eq('id',r.id);closeModal();notify('Consentimiento marcado como completado.');renderPatients();};
   $('#pf').onclick=async()=>{const links=forms.map((f,i)=>`${i+1}. ${f.nombre}: ${f.url}`).join('\n');window.open(`https://wa.me/${waPhone(r.telefono)}?text=${encodeURIComponent(`Hola ${r.nombre} 😊 Ahora revisa o completa los siguientes formularios/documentos:\n\n${links}`)}`,'_blank');await db.from('solicitudes_atencion').update({formularios_estado:'enviado',formularios_enviados_at:new Date().toISOString()}).eq('id',r.id);};
-  $('#pfDone').onclick=async()=>{await db.from('solicitudes_atencion').update({formularios_estado:'completado',formularios_completados_at:new Date().toISOString()}).eq('id',r.id);closeModal();renderMyPatients();};
+  $('#pfDone').onclick=async()=>{await db.from('solicitudes_atencion').update({formularios_estado:'completado',formularios_completados_at:new Date().toISOString()}).eq('id',r.id);closeModal();notify('Formularios marcados como completados.');renderPatients();};
 }
 
 async function openAppointmentForm(requestId, appointment=null){
@@ -222,10 +272,10 @@ async function openAppointmentForm(requestId, appointment=null){
   $('#x').onclick=closeModal;
   $('#apptService').onchange=()=>{const op=$('#apptService').selectedOptions[0];if(op?.dataset.duration)$('#apptDuration').value=op.dataset.duration;};
   $('#saveAppt').onclick=async()=>{const fecha=$('#apptDate').value,hora=$('#apptTime').value,duracion=Number($('#apptDuration').value||60),notas=$('#apptNotes').value.trim(),servicio_id=$('#apptService').value||null;if(!fecha||!hora)return alert('Selecciona fecha y hora.');
-    const professional_id=appointment?.profesional_id||state.professional?.id||r?.profesional_id;if(!professional_id)return alert('No hay profesional asignado.');
+    const professional_id=appointment?.profesional_id||r?.profesional_id||state.professional?.id;if(!professional_id)return alert('No hay profesional asignado.');
     const payload={solicitud_id:req.id||null,profesional_id,servicio_id,paciente_nombre:req.nombre,paciente_telefono:req.telefono,fecha,hora_inicio:hora,duracion_min:duracion,notas};let result;
     if(appointment)result=await db.from('citas').update(payload).eq('id',appointment.id);else result=await db.from('citas').insert(payload);if(result.error)return alert(result.error.message);
-    if(req.id)await db.from('solicitudes_atencion').update({estado:'cita_agendada'}).eq('id',req.id);closeModal();notify('Cita guardada.');state.profile.rol==='admin'?renderAppointments():renderMyPatients();};
+    if(req.id)await db.from('solicitudes_atencion').update({estado:'cita_agendada'}).eq('id',req.id);closeModal();notify('Cita guardada.');appointment?renderAppointments():renderPatients();};
 }
 
 async function renderAppointments(){
@@ -277,9 +327,32 @@ async function renderAdminSchedules(){
 function openAdminSchedule(h=null){const days=['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];showModal(`<div class="modal-head"><h3>${h?'Editar':'Agregar'} horario</h3><button class="icon-btn" id="x">✕</button></div><div class="field"><label>Profesional</label><select id="adminSchPro"><option value="">Selecciona...</option>${state.professionals.map(p=>`<option value="${p.id}" ${h?.profesional_id===p.id?'selected':''}>${esc(p.nombre)}</option>`).join('')}</select></div><div class="field"><label>Día</label><select id="adminSchDay">${days.map((d,i)=>`<option value="${i}" ${h?.dia_semana===i?'selected':''}>${d}</option>`).join('')}</select></div><div class="grid-2"><div class="field"><label>Desde</label><input id="adminSchStart" type="time" value="${h?.hora_inicio?.slice(0,5)||'09:00'}"></div><div class="field"><label>Hasta</label><input id="adminSchEnd" type="time" value="${h?.hora_fin?.slice(0,5)||'17:00'}"></div></div><label class="field-check"><input id="adminSchActive" type="checkbox" ${h?.activo===false?'':'checked'}> Horario activo</label><button id="saveAdminSchedule" class="btn btn-primary">Guardar</button>`);$('#x').onclick=closeModal;$('#saveAdminSchedule').onclick=async()=>{const payload={profesional_id:$('#adminSchPro').value,dia_semana:Number($('#adminSchDay').value),hora_inicio:$('#adminSchStart').value,hora_fin:$('#adminSchEnd').value,activo:$('#adminSchActive').checked};if(!payload.profesional_id)return alert('Selecciona un profesional.');if(payload.hora_inicio>=payload.hora_fin)return alert('La hora final debe ser posterior.');const result=h?await db.from('horarios').update(payload).eq('id',h.id):await db.from('horarios').insert(payload);if(result.error)return alert(result.error.message);closeModal();notify('Horario guardado.');renderAdminSchedules();};}
 
 async function renderProfessionals(){
-  await loadProfessionals();page.innerHTML=`<div class="section-head"><div><h2>Profesionales</h2><p>Crea el acceso y registra el WhatsApp que recibirá las asignaciones.</p></div><button id="newPro" class="btn btn-primary">+ Nuevo profesional</button></div><div class="list">${state.professionals.length?state.professionals.map(p=>`<article class="item"><div class="item-top"><div><h3>${esc(p.nombre)}</h3><div class="meta">WhatsApp: ${esc(p.whatsapp||'Sin registrar')}<br>Acceso: ${p.usuario_id?'Activo':'Sin acceso'}</div></div><span class="badge ${p.usuario_id?'ok':'pending'}">${p.usuario_id?'Con acceso':'Pendiente'}</span></div><div class="actions"><button class="btn btn-soft" data-edit-pro="${p.id}">Editar</button></div></article>`).join(''):'<div class="empty">No hay profesionales.</div>'}</div>`;$('#newPro').onclick=()=>openProfessionalForm();$$('[data-edit-pro]').forEach(b=>b.onclick=()=>openProfessionalForm(state.professionals.find(x=>x.id===b.dataset.editPro)));
+  await loadProfessionals();
+  // Refresca el vínculo del administrador por si se acaba de crear.
+  if(state.profile.rol==='admin'){
+    const mine=state.professionals.find(p=>p.usuario_id===state.user.id)||null;
+    state.professional=mine;
+  }
+  page.innerHTML=`<div class="section-head"><div><h2>Profesionales</h2><p>Crea accesos, registra WhatsApp y asigna pacientes.</p></div><div class="head-actions">${!state.professional?'<button id="selfPro" class="btn btn-soft">También atiendo pacientes</button>':''}<button id="newPro" class="btn btn-primary">+ Nuevo profesional</button></div></div>
+    ${state.professional?`<div class="self-pro-note"><span>✓</span><div><strong>Tu cuenta también está vinculada como profesional</strong><small>Puedes asignarte pacientes desde Solicitudes y verlos en Pacientes → Mis pacientes.</small></div></div>`:''}
+    <div class="list">${state.professionals.length?state.professionals.map(p=>`<article class="item"><div class="item-top"><div><h3>${esc(p.nombre)} ${p.usuario_id===state.user.id?'<span class="mini-you">Tú</span>':''}</h3><div class="meta">WhatsApp: ${esc(p.whatsapp||'Sin registrar')}<br>Acceso: ${p.usuario_id?'Activo':'Sin acceso'}</div></div><span class="badge ${p.usuario_id?'ok':'pending'}">${p.usuario_id?'Con acceso':'Pendiente'}</span></div><div class="actions"><button class="btn btn-soft" data-edit-pro="${p.id}">Editar</button></div></article>`).join(''):'<div class="empty">No hay profesionales.</div>'}</div>`;
+  $('#newPro').onclick=()=>openProfessionalForm();
+  if($('#selfPro'))$('#selfPro').onclick=openAdminProfessionalForm;
+  $$('[data-edit-pro]').forEach(b=>b.onclick=()=>openProfessionalForm(state.professionals.find(x=>x.id===b.dataset.editPro)));
 }
-function openProfessionalForm(p=null){showModal(`<div class="modal-head"><div><h3>${p?'Editar profesional':'Nuevo profesional'}</h3><div class="help">${p?'Puedes actualizar sus datos.':'Se creará su cuenta de acceso y su perfil profesional.'}</div></div><button class="icon-btn" id="x">✕</button></div><div class="field"><label>Nombre</label><input id="proName" value="${esc(p?.nombre||'')}"></div><div class="field"><label>WhatsApp</label><input id="proWa" inputmode="tel" value="${esc(p?.whatsapp||'')}"></div>${p?'':`<div class="field"><label>Correo de acceso</label><input id="proEmail" type="email"></div><div class="field"><label>Contraseña temporal</label><input id="proPass" type="password" minlength="8"></div>`}<button id="savePro" class="btn btn-primary btn-block">Guardar</button>`);$('#x').onclick=closeModal;$('#savePro').onclick=async()=>{const nombre=$('#proName').value.trim(),whatsapp=digits($('#proWa').value);if(!nombre||whatsapp.length<10)return alert('Completa nombre y WhatsApp.');if(p){const {error}=await db.from('profesionales').update({nombre,whatsapp}).eq('id',p.id);if(error)return alert(error.message);closeModal();renderProfessionals();return;}
+function openAdminProfessionalForm(){
+  showModal(`<div class="modal-head"><div><h3>También atiendo pacientes</h3><div class="help">Vincula tu cuenta de administrador a un perfil profesional. Seguirás conservando todos los permisos de administración.</div></div><button class="icon-btn" id="x">✕</button></div><div class="field"><label>Nombre profesional</label><input id="selfProName" value="${esc(state.profile?.nombre||'')}"></div><div class="field"><label>WhatsApp</label><input id="selfProWa" inputmode="tel" placeholder="6561234567"></div><button id="saveSelfPro" class="btn btn-primary btn-block">Activar mi perfil profesional</button>`);
+  $('#x').onclick=closeModal;
+  $('#saveSelfPro').onclick=async()=>{
+    const nombre=$('#selfProName').value.trim(),whatsapp=digits($('#selfProWa').value);
+    if(!nombre||whatsapp.length<10)return alert('Completa nombre y WhatsApp.');
+    const {data,error}=await db.from('profesionales').insert({usuario_id:state.user.id,nombre,whatsapp,activo:true}).select('*').single();
+    if(error)return alert(error.message);
+    state.professional=data;
+    closeModal();notify('Tu cuenta ya puede recibir pacientes.');renderProfessionals();
+  };
+}
+function openProfessionalForm(p=null){showModal(`<div class="modal-head"><div><h3>${p?'Editar profesional':'Nuevo profesional'}</h3><div class="help">${p?'Puedes actualizar sus datos.':'Se creará su cuenta de acceso y su perfil profesional.'}</div></div><button class="icon-btn" id="x">✕</button></div><div class="field"><label>Nombre</label><input id="proName" value="${esc(p?.nombre||'')}"></div><div class="field"><label>WhatsApp</label><input id="proWa" inputmode="tel" value="${esc(p?.whatsapp||'')}"></div>${p?'':`<div class="field"><label>Correo de acceso</label><input id="proEmail" type="email"></div><div class="field"><label>Contraseña temporal</label><input id="proPass" type="password" minlength="8"></div>`}<button id="savePro" class="btn btn-primary btn-block">Guardar</button>`);$('#x').onclick=closeModal;$('#savePro').onclick=async()=>{const nombre=$('#proName').value.trim(),whatsapp=digits($('#proWa').value);if(!nombre||whatsapp.length<10)return alert('Completa nombre y WhatsApp.');if(p){const {error}=await db.from('profesionales').update({nombre,whatsapp}).eq('id',p.id);if(error)return alert(error.message);if(p.usuario_id===state.user.id)state.professional={...p,nombre,whatsapp};closeModal();renderProfessionals();return;}
     const email=$('#proEmail').value.trim(),password=$('#proPass').value;if(!email||password.length<8)return alert('Escribe correo y una contraseña de al menos 8 caracteres.');const session=(await db.auth.getSession()).data.session;const res=await fetch('/api/create-user',{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${session?.access_token||''}`},body:JSON.stringify({nombre,whatsapp,email,password,rol:'profesional'})});const out=await res.json();if(!res.ok)return alert(out.error||'No se pudo crear el usuario.');closeModal();notify('Profesional y acceso creados.');renderProfessionals();};}
 
 async function renderAssociations(){

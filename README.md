@@ -21,10 +21,23 @@ Sistema para **Red de Atención Psicológica Humanista** con página pública, p
 
 ---
 
+
+## Flujo actualizado: Solicitudes vs. Pacientes
+
+El panel separa ahora dos tareas distintas:
+
+- **Solicitudes (solo administración):** muestra nombre, teléfono, profesional asignado y únicamente las acciones **Asignar/Cambiar profesional** y **WhatsApp paciente**.
+- **Pacientes (administración y profesionales):** aquí vive el seguimiento: WhatsApp, consentimiento, formularios/documentos, cita y cierre de proceso.
+- **Administrador que también atiende:** en **Profesionales** aparece el botón **“También atiendo pacientes”**. Al activarlo, la misma cuenta de administrador se vincula a un registro de profesional y puede recibir pacientes sin perder permisos administrativos.
+- **Administrador en Pacientes:** puede ver todos los pacientes y filtrar por profesional o por **Mis pacientes** cuando tenga perfil profesional.
+- **Profesional:** solo ve sus pacientes, sus citas y su disponibilidad.
+
+En celular la barra inferior queda: **Solicitudes · Pacientes · Citas · Profesionales · Más**. Dentro de **Más** están **Servicios · Horarios · Asociaciones**. El botón **Salir** permanece arriba.
+
 ## Flujo del consentimiento informado
 
 1. En **Panel > Más > Asociaciones** se pega el enlace del **Google Forms del consentimiento informado**.
-2. Desde una solicitud, se pulsa **Consentimiento / Formularios > Enviar por WhatsApp**.
+2. En **Pacientes**, se abre **Seguimiento** y se pulsa **Enviar** en Consentimiento informado.
 3. El paciente recibe un enlace a `consentimiento.html`.
 4. En esa pantalla lee una explicación breve y marca la casilla.
 5. Al pulsar **Aceptar y continuar**, se abre el Google Forms configurado.
