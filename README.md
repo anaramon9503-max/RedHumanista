@@ -1,140 +1,117 @@
-# Red Humanista — versión con panel completo
+# Red Humanista — proyecto completo
 
-Esta versión incluye **Solicitudes, Citas, Profesionales, Servicios, Horarios y Asociaciones**, además de la página pública con nombre + teléfono.
+Sistema para **Red de Atención Psicológica Humanista** con página pública, panel administrativo y acceso para profesionales.
 
-## Actualización de una instalación existente
+## Incluye
 
-1. Sube todos los archivos de este ZIP a GitHub/Vercel.
-2. En Supabase → SQL Editor ejecuta **una sola vez** `supabase/02_mejoras_panel.sql`.
-3. Vuelve a abrir `panel.html`.
-
-> La página pública sigue pidiendo únicamente nombre y teléfono. Servicios y horarios son internos para administración/profesionales.
-
----
-
-# Humanista Agenda
-
-Sistema independiente para **Red de Atención Psicológica Humanista**.
-
-## Flujo incluido
-
-1. El paciente abre la página pública.
-2. Solo captura **nombre + teléfono**.
-3. La solicitud llega al administrador como `pendiente`.
-4. El administrador asigna profesional y, si corresponde, asociación.
-5. El administrador pulsa **WhatsApp profesional** y se abre el mensaje con los datos del paciente.
-6. El profesional inicia sesión, ve solamente sus pacientes y contacta al paciente.
-7. Cuando acuerdan fecha y hora, el profesional registra la cita.
-8. El profesional puede mover/editar sus citas y administrar su propia disponibilidad.
-9. Por asociación se configura un consentimiento informado y uno o varios Google Forms.
-10. Consentimiento y Forms se envían por WhatsApp, con estados de enviado/completado.
-11. La agenda permite descargar una imagen de confirmación de cita.
-
-> La página pública NO muestra profesionales, fechas ni horarios.
+- Página pública: el paciente deja **nombre + teléfono**.
+- Solicitudes de atención.
+- Asignación de profesional y asociación.
+- Panel de citas.
+- Servicios y asignación de servicios a profesionales.
+- Horarios internos por profesional.
+- Asociaciones.
+- Google Forms de consentimiento informado.
+- Formularios/tamizajes adicionales.
+- Carga opcional de PDF, DOC, DOCX, JPG, PNG y WEBP para documentos base.
+- Envío por WhatsApp.
+- Confirmación de cita descargable como imagen.
+- Navegación inferior tipo app en celular.
+- **Cerrar sesión permanece arriba**.
 
 ---
 
-## 1. Crear Supabase nuevo
+## Flujo del consentimiento informado
 
-Crea un proyecto separado en Supabase. No uses el Supabase de Miawgenda.
+1. En **Panel > Más > Asociaciones** se pega el enlace del **Google Forms del consentimiento informado**.
+2. Desde una solicitud, se pulsa **Consentimiento / Formularios > Enviar por WhatsApp**.
+3. El paciente recibe un enlace a `consentimiento.html`.
+4. En esa pantalla lee una explicación breve y marca la casilla.
+5. Al pulsar **Aceptar y continuar**, se abre el Google Forms configurado.
+6. La aceptación formal queda dentro de Google Forms.
+7. Cuando el equipo verifica la respuesta recibida, en el panel se pulsa **Marcar completado**.
+8. Después pueden enviarse los demás formularios/tamizajes.
 
-### Ejecuta el esquema completo
+La app no marca automáticamente un Google Forms como completado porque Google Forms no notifica directamente a esta aplicación. Ese estado se confirma manualmente desde el panel.
 
-Ve a **SQL Editor > New query** y ejecuta:
-
-`supabase/01_setup_completo.sql`
-
----
-
-## 2. Crear el primer administrador
-
-En Supabase ve a:
-
-**Authentication > Users > Add user**
-
-Crea el correo y contraseña del administrador.
-
-Después abre:
-
-`supabase/02_crear_primer_admin.sql`
-
-Cambia:
-
-`CAMBIA_AQUI_TU_CORREO_ADMIN`
-
-por el correo que acabas de crear y ejecuta el SQL.
+Consulta `GUIA_GOOGLE_FORMS.md` para armar el formulario paso a paso.
 
 ---
 
-## 3. Configurar el frontend
+## Si tu Supabase YA está creado
 
-En Supabase ve a **Project Settings > API** y copia:
+No vuelvas a ejecutar `01_setup_completo.sql` sobre una base en uso.
 
-- Project URL
-- Publishable/anon key
+Ejecuta en **Supabase > SQL Editor**:
 
-Abre `config.js` y reemplaza:
+1. `supabase/02_mejoras_panel.sql` — agrega Servicios y servicio en Citas.
+2. `supabase/03_storage_documentos.sql` — solo si quieres subir archivos desde Formularios/Documentos.
 
-- `TU_SUPABASE_URL`
-- `TU_SUPABASE_PUBLISHABLE_KEY`
-
-La `service_role` NUNCA se pone en `config.js`.
+Si ya ejecutaste alguno de ellos correctamente, no necesitas repetirlo.
 
 ---
 
-## 4. Subir a GitHub y Vercel
+## Si vas a crear un Supabase NUEVO
 
-Sube la carpeta completa a un repositorio nuevo, por ejemplo:
+1. Ejecuta `supabase/01_setup_completo.sql`.
+2. Ejecuta `supabase/02_mejoras_panel.sql`.
+3. Ejecuta `supabase/03_storage_documentos.sql` si usarás carga de archivos.
+4. Crea el primer usuario administrador en **Authentication > Users** y vincúlalo a la tabla `perfiles` como administrador, según tu configuración actual.
 
-`Humanista-Agenda`
+---
 
-En Vercel importa ese repositorio.
+## Configuración
 
-En **Vercel > Settings > Environment Variables** agrega:
+`config.js` contiene:
+
+- `SUPABASE_URL`
+- `SUPABASE_ANON_KEY`
+- nombre del negocio
+- código de país para WhatsApp
+
+La `service_role` nunca debe colocarse en `config.js`; solo debe existir como variable de entorno del servidor para `/api/create-user.js`.
+
+---
+
+## Vercel
+
+Sube **todo el contenido de esta carpeta** al repositorio que ya usa tu proyecto y haz commit.
+
+Rutas principales:
+
+- `/` — solicitud pública.
+- `/panel.html` — acceso de administrador/profesionales.
+- `/consentimiento.html` — pantalla intermedia; normalmente se abre desde el enlace enviado por WhatsApp.
+
+Variables de entorno necesarias para crear accesos de profesionales:
 
 - `SUPABASE_URL`
 - `SUPABASE_ANON_KEY`
 - `SUPABASE_SERVICE_ROLE_KEY`
 
-Los valores salen de Supabase > Project Settings > API.
+---
 
-La service role es secreta y solo la usa `/api/create-user.js` para que el administrador pueda crear accesos de profesionales.
+## Formularios y archivos
 
-Después haz un redeploy.
+En **Más > Asociaciones**:
+
+- El campo **Google Forms del consentimiento informado** debe apuntar al formulario de consentimiento.
+- En **Formularios** puedes agregar Google Forms de tamizajes u otros enlaces.
+- También puedes subir archivos base de hasta 10 MB si ejecutaste `03_storage_documentos.sql`.
+
+El bucket de Storage está pensado para **documentos base que se comparten con pacientes**, no para expedientes clínicos ni documentos privados del paciente.
 
 ---
 
-## 5. URLs
+## Archivos importantes
 
-- `/` → Solicitud pública de pacientes.
-- `/panel` → Login de administrador y profesionales.
-
----
-
-## 6. Primer uso
-
-1. Entra a `/panel` con la cuenta del administrador.
-2. Ve a **Profesionales** y crea cada profesional con nombre, WhatsApp, correo y contraseña temporal.
-3. Ve a **Asociaciones** y crea cada asociación.
-4. En cada asociación agrega el enlace al consentimiento informado.
-5. En **Formularios** agrega los Google Forms que correspondan.
-6. Haz una solicitud de prueba desde `/`.
-7. Asígnala a un profesional y prueba el botón de WhatsApp.
-8. Inicia sesión con el profesional y registra una cita.
-
----
-
-## Seguridad incluida
-
-- RLS activo en todas las tablas.
-- El paciente anónimo no puede leer datos.
-- Las solicitudes públicas entran por una función controlada (`crear_solicitud_atencion`).
-- El administrador puede ver y administrar todo.
-- Cada profesional solo puede ver sus pacientes, citas y horarios.
-- La service role queda únicamente del lado servidor en Vercel.
-
----
-
-## Importante sobre Google Forms
-
-Esta versión maneja el estado de los formularios de forma **manual** (`pendiente`, `enviado`, `completado`). Google Forms no notifica automáticamente a esta app cuando una persona termina un formulario. Para automatizarlo después se puede integrar Apps Script/webhooks, pero no es necesario para operar el sistema.
+- `index.html` — página pública.
+- `public.js` — envío de solicitud pública.
+- `panel.html` — estructura del panel.
+- `panel.js` — lógica del panel.
+- `asset/styles.css` — estilos completos.
+- `consentimiento.html` — paso previo al Google Forms.
+- `GUIA_GOOGLE_FORMS.md` — guía para construir el consentimiento.
+- `PLANTILLA_MENSAJE_CONSENTIMIENTO.txt` — texto de referencia para WhatsApp.
+- `supabase/02_mejoras_panel.sql` — Servicios/Citas.
+- `supabase/03_storage_documentos.sql` — carga de documentos.

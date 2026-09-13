@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#087f98">
+  <title>Consentimiento informado | Red Humanista</title>
+  <link rel="stylesheet" href="./asset/styles.css">
+</head>
+<body class="consent-page">
+  <main class="consent-shell">
+    <header class="consent-brand">
+      <img src="./asset/logo-humanista.png" alt="Red de Atención Psicológica Humanista">
+      <div>
+        <small>Red de Atención</small>
+        <strong>Psicológica Humanista</strong>
+      </div>
+    </header>
+
+    <section class="consent-card">
+      <div class="consent-accent"></div>
+      <div class="consent-heading">
+        <span class="consent-icon">♡</span>
+        <div>
+          <div class="consent-kicker">Antes de continuar</div>
+          <h1>Consentimiento informado</h1>
+        </div>
+      </div>
+
+      <p id="personalGreeting" class="consent-intro">Lee esta información con calma antes de continuar con tu proceso de atención.</p>
+
+      <div class="consent-summary">
+        <h2>¿Qué estás aceptando?</h2>
+        <p>El consentimiento informado explica en qué consiste la atención psicológica, sus alcances, la confidencialidad, el manejo de información y las condiciones generales del proceso.</p>
+        <p>Tu participación es voluntaria. Puedes solicitar aclaraciones antes de otorgar tu consentimiento.</p>
+      </div>
+
+      <div class="consent-points">
+        <div><span>✓</span><p><strong>Información clara</strong><br>Podrás revisar las condiciones completas dentro del formulario.</p></div>
+        <div><span>✓</span><p><strong>Confidencialidad</strong><br>Se explican sus alcances y las excepciones que correspondan.</p></div>
+        <div><span>✓</span><p><strong>Decisión voluntaria</strong><br>La aceptación formal se registra dentro de Google Forms.</p></div>
+      </div>
+
+      <label class="consent-check">
+        <input id="acceptCheck" type="checkbox">
+        <span>He leído la información anterior y deseo continuar al formulario de consentimiento informado.</span>
+      </label>
+
+      <div id="consentError" class="message error hidden"></div>
+
+      <button id="continueBtn" class="consent-continue" type="button" disabled>
+        <span>Aceptar y continuar</span><b>→</b>
+      </button>
+
+      <p class="consent-note">Al continuar se abrirá el Google Forms configurado por la organización. La aceptación formal se realiza dentro de ese formulario.</p>
+    </section>
+
+    <footer class="consent-footer">
+      <span>ESCUCHA</span><b>•</b><span>ACOMPAÑA</span><b>•</b><span>TRANSFORMA</span>
+    </footer>
+  </main>
+
+  <script>
+    const params = new URLSearchParams(location.search);
+    const formUrl = params.get('form') || '';
+    const nombre = params.get('nombre') || '';
+    const asociacion = params.get('asociacion') || '';
+    const check = document.getElementById('acceptCheck');
+    const btn = document.getElementById('continueBtn');
+    const errorBox = document.getElementById('consentError');
+    const greeting = document.getElementById('personalGreeting');
+
+    if (nombre) {
+      greeting.textContent = `${nombre}, lee esta información con calma antes de continuar con tu proceso${asociacion ? ` con ${asociacion}` : ''}.`;
+    } else if (asociacion) {
+      greeting.textContent = `Lee esta información con calma antes de continuar con tu proceso con ${asociacion}.`;
+    }
+
+    function validGoogleForm(value) {
+      try {
+        const url = new URL(value);
+        return url.protocol === 'https:' && (
+          url.hostname === 'forms.gle' ||
+          (url.hostname === 'docs.google.com' && url.pathname.includes('/forms/'))
+        );
+      } catch {
+        return false;
+      }
+    }
+
+    if (!validGoogleForm(formUrl)) {
+      errorBox.textContent = 'El enlace del consentimiento no está configurado correctamente. Comunícate con el equipo antes de continuar.';
+      errorBox.classList.remove('hidden');
+      check.disabled = true;
+      btn.disabled = true;
+    }
+
+    check.addEventListener('change', () => {
+      btn.disabled = !check.checked || !validGoogleForm(formUrl);
+    });
+
+    btn.addEventListener('click', () => {
+      if (!check.checked || !validGoogleForm(formUrl)) return;
+      location.href = formUrl;
+    });
+  </script>
+</body>
+</html>

@@ -10,7 +10,7 @@
   <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
   <script src="config.js"></script>
 </head>
-<body>
+<body class="panel-page">
   <section id="loginView" class="login-wrap">
     <div class="brand login-brand">
       <img src="./asset/logo-humanista.png" alt="Red de Atención Psicológica Humanista" class="brand-logo">
@@ -21,7 +21,7 @@
       <div id="loginMessage" class="message hidden"></div>
       <div class="field"><label>Correo</label><input id="loginEmail" type="email" autocomplete="email" placeholder="correo@ejemplo.com"></div>
       <div class="field"><label>Contraseña</label><input id="loginPassword" type="password" autocomplete="current-password" placeholder="••••••••"></div>
-      <button id="loginBtn" class="btn btn-primary">Entrar</button>
+      <button id="loginBtn" class="btn btn-primary btn-block">Entrar</button>
     </div>
   </section>
 
@@ -32,13 +32,16 @@
           <img src="./asset/logo-humanista.png" alt="Red Humanista" class="mini-logo">
           <div><strong>Red Humanista</strong><small id="roleLabel">Panel</small></div>
         </div>
-        <div class="user-box"><span class="email" id="userEmail"></span><button id="logoutBtn" class="btn btn-light btn-compact">Salir</button></div>
+        <div class="user-box">
+          <span class="email" id="userEmail"></span>
+          <button id="logoutBtn" class="btn btn-light btn-compact">Salir</button>
+        </div>
       </div>
     </header>
 
     <main class="container panel-shell">
       <div class="dashboard-grid">
-        <nav class="sidebar" id="sidebar"></nav>
+        <nav class="sidebar" id="sidebar" aria-label="Navegación principal"></nav>
         <section class="content">
           <div id="globalMessage" class="message hidden"></div>
           <div id="page"></div>
@@ -47,6 +50,7 @@
     </main>
   </div>
 
+  <div id="moreMenu" class="more-menu hidden" aria-hidden="true"></div>
   <div id="modal" class="modal hidden"><div class="modal-card" id="modalCard"></div></div>
   <script type="module" src="panel.js"></script>
 </body>

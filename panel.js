@@ -5,7 +5,7 @@ const $$ = (s, root=document) => [...root.querySelectorAll(s)];
 const state = { user:null, profile:null, professional:null, professionals:[], associations:[], requests:[], appointments:[], schedules:[], services:[] };
 
 const loginView=$('#loginView'), appView=$('#appView'), page=$('#page'), sidebar=$('#sidebar'), modal=$('#modal'), modalCard=$('#modalCard');
-const globalMessage=$('#globalMessage');
+const globalMessage=$('#globalMessage'), moreMenu=$('#moreMenu');
 
 function esc(v=''){return String(v).replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));}
 function digits(v=''){return String(v).replace(/\D/g,'');}
@@ -20,6 +20,41 @@ function notify(text,type='success'){globalMessage.textContent=text;globalMessag
 function showModal(html){modalCard.innerHTML=html;modal.classList.remove('hidden');}
 function closeModal(){modal.classList.add('hidden');modalCard.innerHTML='';}
 modal.addEventListener('click',e=>{if(e.target===modal)closeModal();});
+
+// ============================================================
+// DOCUMENTOS DE ASOCIACIONES (SUPABASE STORAGE)
+// ============================================================
+const DOCUMENT_BUCKET='documentos-humanista';
+
+function safeFileName(name='archivo'){
+  return String(name)
+    .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+    .replace(/[^a-zA-Z0-9._-]+/g,'-')
+    .replace(/-+/g,'-')
+    .replace(/^-|-$/g,'') || 'archivo';
+}
+
+async function uploadAssociationDocument(file,folder='documentos'){
+  if(!file) throw new Error('Selecciona un archivo.');
+  const max=10*1024*1024;
+  if(file.size>max) throw new Error('El archivo supera el límite de 10 MB.');
+  const allowed=['application/pdf','application/msword','application/vnd.openxmlformats-officedocument.wordprocessingml.document','image/jpeg','image/png','image/webp'];
+  if(file.type && !allowed.includes(file.type)) throw new Error('Formato no permitido. Usa PDF, DOC, DOCX, JPG, PNG o WEBP.');
+  const token=(globalThis.crypto?.randomUUID?.()||Math.random().toString(36).slice(2));
+  const path=`${folder}/${Date.now()}-${token}-${safeFileName(file.name)}`;
+  const {error}=await db.storage.from(DOCUMENT_BUCKET).upload(path,file,{cacheControl:'3600',upsert:false,contentType:file.type||undefined});
+  if(error) throw error;
+  const {data}=db.storage.from(DOCUMENT_BUCKET).getPublicUrl(path);
+  if(!data?.publicUrl) throw new Error('No fue posible obtener el enlace del archivo.');
+  return data.publicUrl;
+}
+
+function setUploadStatus(id,text,type='ok'){
+  const el=$(id);
+  if(!el)return;
+  el.textContent=text;
+  el.className=`upload-status ${type}`;
+}
 
 $('#loginBtn').addEventListener('click',login);
 $('#loginPassword').addEventListener('keydown',e=>{if(e.key==='Enter')login();});
@@ -47,14 +82,35 @@ async function boot(user){
   renderNav(); await go(profile.rol==='admin'?'solicitudes':'pacientes');
 }
 
+function navIcon(id){
+  return ({solicitudes:'✉',agenda:'▣',profesionales:'♙',servicios:'✦',horarios:'◷',asociaciones:'◎',pacientes:'♙'})[id]||'•';
+}
 function renderNav(){
   const admin=[['solicitudes','Solicitudes'],['agenda','Citas'],['profesionales','Profesionales'],['servicios','Servicios'],['horarios','Horarios'],['asociaciones','Asociaciones']];
   const pro=[['pacientes','Mis pacientes'],['agenda','Mis citas'],['horarios','Mi disponibilidad']];
   const links=state.profile.rol==='admin'?admin:pro;
-  sidebar.innerHTML=links.map(([id,label])=>`<button class="nav-btn" data-page="${id}">${label}</button>`).join('');
-  $$('.nav-btn',sidebar).forEach(b=>b.onclick=()=>go(b.dataset.page));
+  sidebar.innerHTML=links.map(([id,label],i)=>`<button class="nav-btn ${state.profile.rol==='admin'&&i>3?'nav-extra':''}" data-page="${id}"><span class="nav-icon">${navIcon(id)}</span><span class="nav-label">${label}</span></button>`).join('') + (state.profile.rol==='admin'?`<button class="nav-btn nav-more" id="navMore" type="button"><span class="nav-icon">•••</span><span class="nav-label">Más</span></button>`:'');
+  $$('.nav-btn[data-page]',sidebar).forEach(b=>b.onclick=()=>go(b.dataset.page));
+  if($('#navMore')) $('#navMore').onclick=toggleMoreMenu;
+  renderMoreMenu();
 }
-async function go(name){$$('.nav-btn',sidebar).forEach(b=>b.classList.toggle('active',b.dataset.page===name));page.innerHTML='<div class="empty">Cargando...</div>';
+function renderMoreMenu(){
+  if(!moreMenu)return;
+  if(state.profile?.rol!=='admin'){moreMenu.classList.add('hidden');moreMenu.innerHTML='';return;}
+  moreMenu.innerHTML=`<button data-more-page="horarios"><span>◷</span> Horarios</button><button data-more-page="asociaciones"><span>◎</span> Asociaciones</button>`;
+  $$('[data-more-page]',moreMenu).forEach(b=>b.onclick=()=>{moreMenu.classList.add('hidden');go(b.dataset.morePage);});
+}
+function toggleMoreMenu(){
+  if(!moreMenu)return;
+  moreMenu.classList.toggle('hidden');
+  moreMenu.setAttribute('aria-hidden',moreMenu.classList.contains('hidden')?'true':'false');
+}
+document.addEventListener('click',e=>{if(!moreMenu||moreMenu.classList.contains('hidden'))return;if(e.target.closest('#moreMenu')||e.target.closest('#navMore'))return;moreMenu.classList.add('hidden');});
+async function go(name){
+  $$('.nav-btn[data-page]',sidebar).forEach(b=>b.classList.toggle('active',b.dataset.page===name));
+  if($('#navMore')) $('#navMore').classList.toggle('active',['horarios','asociaciones'].includes(name));
+  if(moreMenu)moreMenu.classList.add('hidden');
+  page.innerHTML='<div class="empty">Cargando...</div>';
   if(name==='solicitudes')return renderRequests();
   if(name==='agenda')return renderAppointments();
   if(name==='profesionales')return renderProfessionals();
@@ -94,7 +150,7 @@ function requestCard(r){
   const pro=r.profesionales?.nombre||'Sin asignar', assoc=r.asociaciones?.nombre||'Sin asociación';
   return `<article class="item"><div class="item-top"><div><h3>${esc(r.nombre)}</h3><div class="meta">📱 ${esc(r.telefono)}<br>Profesional: <strong>${esc(pro)}</strong><br>Asociación: ${esc(assoc)}<br>Recibida: ${new Date(r.created_at).toLocaleString('es-MX')}</div></div>${statusBadge(r.estado)}</div>
     <div class="progress"><span class="progress-step ${r.profesional_id?'done':''}">Profesional</span><span class="progress-step ${r.consentimiento_estado==='completado'?'done':''}">Consentimiento</span><span class="progress-step ${r.formularios_estado==='completado'?'done':''}">Forms</span><span class="progress-step ${r.estado==='cita_agendada'?'done':''}">Cita</span></div>
-    <div class="actions"><button class="btn btn-soft" data-assign="${r.id}">${r.profesional_id?'Reasignar':'Asignar profesional'}</button>${r.profesional_id?`<button class="btn btn-whatsapp" data-wa-pro="${r.id}">WhatsApp profesional</button>`:''}<button class="btn btn-whatsapp" data-wa-patient="${r.id}">WhatsApp paciente</button><button class="btn btn-light" data-docs="${r.id}">Consentimiento / Forms</button>${r.estado!=='cerrada'?`<button class="btn btn-danger" data-close-request="${r.id}">Cerrar</button>`:''}</div></article>`;
+    <div class="actions"><button class="btn btn-soft" data-assign="${r.id}">${r.profesional_id?'Reasignar':'Asignar profesional'}</button>${r.profesional_id?`<button class="btn btn-whatsapp" data-wa-pro="${r.id}">WhatsApp profesional</button>`:''}<button class="btn btn-whatsapp" data-wa-patient="${r.id}">WhatsApp paciente</button><button class="btn btn-light" data-docs="${r.id}">Consentimiento / Formularios</button>${r.estado!=='cerrada'?`<button class="btn btn-danger" data-close-request="${r.id}">Cerrar</button>`:''}</div></article>`;
 }
 function openAssign(id){
   const r=state.requests.find(x=>x.id===id); if(!r)return;
@@ -111,17 +167,26 @@ function waProfessional(id){const r=state.requests.find(x=>x.id===id);const p=st
 function waPatient(id){const r=state.requests.find(x=>x.id===id);if(!r)return;const p=state.professionals.find(x=>x.id===r.profesional_id);const text=p?`Hola ${r.nombre} 😊 Somos de Red de Atención Psicológica Humanista. Tu solicitud fue asignada a ${p.nombre}. Nos pondremos en contacto contigo para acordar tu cita.`:`Hola ${r.nombre} 😊 Recibimos tu solicitud en Red de Atención Psicológica Humanista. Un profesional se pondrá en contacto contigo para agendar tu cita.`;window.open(`https://wa.me/${waPhone(r.telefono)}?text=${encodeURIComponent(text)}`,'_blank');}
 async function setRequestStatus(id,estado){const {error}=await db.from('solicitudes_atencion').update({estado}).eq('id',id);if(error)return notify(error.message,'error');notify('Estado actualizado.');renderRequests();}
 
+function consentLandingUrl(formUrl,request,association){
+  if(!formUrl)return '';
+  const u=new URL('./consentimiento.html',window.location.href);
+  u.searchParams.set('form',formUrl);
+  if(request?.nombre)u.searchParams.set('nombre',request.nombre);
+  if(association?.nombre)u.searchParams.set('asociacion',association.nombre);
+  return u.toString();
+}
+
 function openDocuments(id){
   const r=state.requests.find(x=>x.id===id), a=state.associations.find(x=>x.id===r?.asociacion_id); if(!r)return;
   const forms=a?.formularios||[];
   showModal(`<div class="modal-head"><div><h3>Consentimiento y formularios</h3><div class="help">${esc(r.nombre)}</div></div><button class="icon-btn" id="x">✕</button></div>
     ${!a?'<div class="message error">Primero asigna una asociación al paciente.</div>':`<div class="item"><strong>${esc(a.nombre)}</strong><div class="meta">Consentimiento: ${a.consentimiento_url?'Configurado':'Sin enlace'} · Formularios: ${forms.length}</div></div>
     <div class="divider"></div><h3>1. Consentimiento informado</h3><div class="meta">Estado: <strong>${esc(r.consentimiento_estado)}</strong></div><div class="actions"><button class="btn btn-whatsapp" id="sendConsent" ${!a.consentimiento_url?'disabled':''}>Enviar por WhatsApp</button><button class="btn btn-success" id="doneConsent">Marcar completado</button></div>
-    <div class="divider"></div><h3>2. Google Forms</h3><div class="meta">Estado: <strong>${esc(r.formularios_estado)}</strong></div>${forms.map(f=>`<div class="meta">• ${esc(f.nombre)}</div>`).join('')||'<div class="meta">No hay formularios configurados.</div>'}<div class="actions"><button class="btn btn-whatsapp" id="sendForms" ${r.consentimiento_estado!=='completado'||!forms.length?'disabled':''}>Enviar Forms</button><button class="btn btn-success" id="doneForms" ${r.consentimiento_estado!=='completado'?'disabled':''}>Marcar completados</button></div>`}`);
+    <div class="divider"></div><h3>2. Formularios / documentos</h3><div class="meta">Estado: <strong>${esc(r.formularios_estado)}</strong></div>${forms.map(f=>`<div class="meta">• ${esc(f.nombre)}</div>`).join('')||'<div class="meta">No hay formularios o documentos configurados.</div>'}<div class="actions"><button class="btn btn-whatsapp" id="sendForms" ${r.consentimiento_estado!=='completado'||!forms.length?'disabled':''}>Enviar formularios</button><button class="btn btn-success" id="doneForms" ${r.consentimiento_estado!=='completado'?'disabled':''}>Marcar completados</button></div>`}`);
   $('#x').onclick=closeModal;if(!a)return;
-  $('#sendConsent').onclick=async()=>{const text=`Hola ${r.nombre} 😊 Antes de continuar con tu proceso, por favor revisa y completa el consentimiento informado de ${a.nombre}:\n\n${a.consentimiento_url}\n\nCuando lo hayas completado, avísanos por este medio.`;window.open(`https://wa.me/${waPhone(r.telefono)}?text=${encodeURIComponent(text)}`,'_blank');await db.from('solicitudes_atencion').update({consentimiento_estado:'enviado',consentimiento_enviado_at:new Date().toISOString()}).eq('id',r.id);};
+  $('#sendConsent').onclick=async()=>{const link=consentLandingUrl(a.consentimiento_url,r,a);const text=`Hola ${r.nombre} 😊 Antes de continuar con tu proceso, revisa la información de consentimiento en el siguiente enlace. Al presionar “Aceptar y continuar” se abrirá el Google Forms para registrar tu consentimiento:\n\n${link}\n\nPor favor completa el formulario y al terminar avísanos por este medio.`;window.open(`https://wa.me/${waPhone(r.telefono)}?text=${encodeURIComponent(text)}`,'_blank');await db.from('solicitudes_atencion').update({consentimiento_estado:'enviado',consentimiento_enviado_at:new Date().toISOString()}).eq('id',r.id);};
   $('#doneConsent').onclick=async()=>{await db.from('solicitudes_atencion').update({consentimiento_estado:'completado',consentimiento_completado_at:new Date().toISOString()}).eq('id',r.id);closeModal();notify('Consentimiento marcado como completado.');renderRequests();};
-  $('#sendForms').onclick=async()=>{const links=forms.map((f,i)=>`${i+1}. ${f.nombre}: ${f.url}`).join('\n');const text=`Hola ${r.nombre} 😊 Ya podemos continuar con tus formularios de ${a.nombre}:\n\n${links}\n\nPor favor complétalos antes de tu atención.`;window.open(`https://wa.me/${waPhone(r.telefono)}?text=${encodeURIComponent(text)}`,'_blank');await db.from('solicitudes_atencion').update({formularios_estado:'enviado',formularios_enviados_at:new Date().toISOString()}).eq('id',r.id);};
+  $('#sendForms').onclick=async()=>{const links=forms.map((f,i)=>`${i+1}. ${f.nombre}: ${f.url}`).join('\n');const text=`Hola ${r.nombre} 😊 Ya podemos continuar con los formularios y documentos de ${a.nombre}:\n\n${links}\n\nPor favor revísalos o complétalos antes de tu atención, según corresponda.`;window.open(`https://wa.me/${waPhone(r.telefono)}?text=${encodeURIComponent(text)}`,'_blank');await db.from('solicitudes_atencion').update({formularios_estado:'enviado',formularios_enviados_at:new Date().toISOString()}).eq('id',r.id);};
   $('#doneForms').onclick=async()=>{await db.from('solicitudes_atencion').update({formularios_estado:'completado',formularios_completados_at:new Date().toISOString()}).eq('id',r.id);closeModal();notify('Formularios marcados como completados.');renderRequests();};
 }
 
@@ -135,11 +200,11 @@ async function renderMyPatients(){
 
 function openProDocuments(id){
   const r=state.requests.find(x=>x.id===id),a=r?.asociaciones,forms=(a?.formularios||[]).filter(f=>f.activo).sort((x,y)=>x.orden-y.orden);if(!r)return;
-  showModal(`<div class="modal-head"><div><h3>Documentación</h3><div class="help">${esc(r.nombre)}</div></div><button class="icon-btn" id="x">✕</button></div>${!a?'<div class="message error">El administrador todavía no asigna una asociación.</div>':`<div class="meta"><strong>${esc(a.nombre)}</strong></div><div class="divider"></div><div class="meta">Consentimiento: <strong>${esc(r.consentimiento_estado)}</strong></div><div class="actions"><button id="pc" class="btn btn-whatsapp" ${!a.consentimiento_url?'disabled':''}>Enviar consentimiento</button><button id="pcDone" class="btn btn-success">Marcar completado</button></div><div class="divider"></div><div class="meta">Formularios: <strong>${esc(r.formularios_estado)}</strong></div>${forms.map(f=>`<div class="meta">• ${esc(f.nombre)}</div>`).join('')}<div class="actions"><button id="pf" class="btn btn-whatsapp" ${r.consentimiento_estado!=='completado'||!forms.length?'disabled':''}>Enviar Forms</button><button id="pfDone" class="btn btn-success" ${r.consentimiento_estado!=='completado'?'disabled':''}>Marcar completados</button></div>`}`);
+  showModal(`<div class="modal-head"><div><h3>Documentación</h3><div class="help">${esc(r.nombre)}</div></div><button class="icon-btn" id="x">✕</button></div>${!a?'<div class="message error">El administrador todavía no asigna una asociación.</div>':`<div class="meta"><strong>${esc(a.nombre)}</strong></div><div class="divider"></div><div class="meta">Consentimiento: <strong>${esc(r.consentimiento_estado)}</strong></div><div class="actions"><button id="pc" class="btn btn-whatsapp" ${!a.consentimiento_url?'disabled':''}>Enviar consentimiento</button><button id="pcDone" class="btn btn-success">Marcar completado</button></div><div class="divider"></div><div class="meta">Formularios: <strong>${esc(r.formularios_estado)}</strong></div>${forms.map(f=>`<div class="meta">• ${esc(f.nombre)}</div>`).join('')}<div class="actions"><button id="pf" class="btn btn-whatsapp" ${r.consentimiento_estado!=='completado'||!forms.length?'disabled':''}>Enviar formularios</button><button id="pfDone" class="btn btn-success" ${r.consentimiento_estado!=='completado'?'disabled':''}>Marcar completados</button></div>`}`);
   $('#x').onclick=closeModal;if(!a)return;
-  $('#pc').onclick=async()=>{window.open(`https://wa.me/${waPhone(r.telefono)}?text=${encodeURIComponent(`Hola ${r.nombre} 😊 Por favor completa el consentimiento informado de ${a.nombre}:\n\n${a.consentimiento_url}`)}`,'_blank');await db.from('solicitudes_atencion').update({consentimiento_estado:'enviado',consentimiento_enviado_at:new Date().toISOString()}).eq('id',r.id);};
+  $('#pc').onclick=async()=>{const link=consentLandingUrl(a.consentimiento_url,r,a);const text=`Hola ${r.nombre} 😊 Antes de continuar, revisa el consentimiento informado. Al presionar “Aceptar y continuar” se abrirá el Google Forms para registrar tu consentimiento:\n\n${link}`;window.open(`https://wa.me/${waPhone(r.telefono)}?text=${encodeURIComponent(text)}`,'_blank');await db.from('solicitudes_atencion').update({consentimiento_estado:'enviado',consentimiento_enviado_at:new Date().toISOString()}).eq('id',r.id);};
   $('#pcDone').onclick=async()=>{await db.from('solicitudes_atencion').update({consentimiento_estado:'completado',consentimiento_completado_at:new Date().toISOString()}).eq('id',r.id);closeModal();renderMyPatients();};
-  $('#pf').onclick=async()=>{const links=forms.map((f,i)=>`${i+1}. ${f.nombre}: ${f.url}`).join('\n');window.open(`https://wa.me/${waPhone(r.telefono)}?text=${encodeURIComponent(`Hola ${r.nombre} 😊 Ahora completa los siguientes formularios:\n\n${links}`)}`,'_blank');await db.from('solicitudes_atencion').update({formularios_estado:'enviado',formularios_enviados_at:new Date().toISOString()}).eq('id',r.id);};
+  $('#pf').onclick=async()=>{const links=forms.map((f,i)=>`${i+1}. ${f.nombre}: ${f.url}`).join('\n');window.open(`https://wa.me/${waPhone(r.telefono)}?text=${encodeURIComponent(`Hola ${r.nombre} 😊 Ahora revisa o completa los siguientes formularios/documentos:\n\n${links}`)}`,'_blank');await db.from('solicitudes_atencion').update({formularios_estado:'enviado',formularios_enviados_at:new Date().toISOString()}).eq('id',r.id);};
   $('#pfDone').onclick=async()=>{await db.from('solicitudes_atencion').update({formularios_estado:'completado',formularios_completados_at:new Date().toISOString()}).eq('id',r.id);closeModal();renderMyPatients();};
 }
 
@@ -218,10 +283,44 @@ function openProfessionalForm(p=null){showModal(`<div class="modal-head"><div><h
     const email=$('#proEmail').value.trim(),password=$('#proPass').value;if(!email||password.length<8)return alert('Escribe correo y una contraseña de al menos 8 caracteres.');const session=(await db.auth.getSession()).data.session;const res=await fetch('/api/create-user',{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${session?.access_token||''}`},body:JSON.stringify({nombre,whatsapp,email,password,rol:'profesional'})});const out=await res.json();if(!res.ok)return alert(out.error||'No se pudo crear el usuario.');closeModal();notify('Profesional y acceso creados.');renderProfessionals();};}
 
 async function renderAssociations(){
-  await loadAssociations();page.innerHTML=`<div class="section-head"><div><h2>Asociaciones</h2><p>Configura el consentimiento y los Google Forms que corresponden a cada asociación.</p></div><button id="newAssoc" class="btn btn-primary">+ Nueva asociación</button></div><div class="list">${state.associations.length?state.associations.map(a=>`<article class="item"><div class="item-top"><div><h3>${esc(a.nombre)}</h3><div class="meta">Consentimiento: ${a.consentimiento_url?'Sí':'No'} · Google Forms: ${a.formularios.length}</div></div><span class="badge ok">Activa</span></div><div class="actions"><button class="btn btn-soft" data-edit-assoc="${a.id}">Editar</button><button class="btn btn-light" data-forms="${a.id}">Formularios</button></div></article>`).join(''):'<div class="empty">Todavía no hay asociaciones.</div>'}</div>`;$('#newAssoc').onclick=()=>openAssociationForm();$$('[data-edit-assoc]').forEach(b=>b.onclick=()=>openAssociationForm(state.associations.find(x=>x.id===b.dataset.editAssoc)));$$('[data-forms]').forEach(b=>b.onclick=()=>openForms(state.associations.find(x=>x.id===b.dataset.forms)));
+  await loadAssociations();page.innerHTML=`<div class="section-head"><div><h2>Asociaciones</h2><p>Configura el Google Forms de consentimiento y los formularios adicionales de cada asociación.</p></div><button id="newAssoc" class="btn btn-primary">+ Nueva asociación</button></div><div class="list">${state.associations.length?state.associations.map(a=>`<article class="item"><div class="item-top"><div><h3>${esc(a.nombre)}</h3><div class="meta">Consentimiento: ${a.consentimiento_url?'Sí':'No'} · Formularios/Docs: ${a.formularios.length}</div></div><span class="badge ok">Activa</span></div><div class="actions"><button class="btn btn-soft" data-edit-assoc="${a.id}">Editar</button><button class="btn btn-light" data-forms="${a.id}">Formularios</button></div></article>`).join(''):'<div class="empty">Todavía no hay asociaciones.</div>'}</div>`;$('#newAssoc').onclick=()=>openAssociationForm();$$('[data-edit-assoc]').forEach(b=>b.onclick=()=>openAssociationForm(state.associations.find(x=>x.id===b.dataset.editAssoc)));$$('[data-forms]').forEach(b=>b.onclick=()=>openForms(state.associations.find(x=>x.id===b.dataset.forms)));
 }
-function openAssociationForm(a=null){showModal(`<div class="modal-head"><h3>${a?'Editar':'Nueva'} asociación</h3><button class="icon-btn" id="x">✕</button></div><div class="field"><label>Nombre</label><input id="assocName" value="${esc(a?.nombre||'')}"></div><div class="field"><label>Enlace de consentimiento informado</label><input id="assocConsent" type="url" placeholder="https://..." value="${esc(a?.consentimiento_url||'')}"></div><button id="saveAssoc" class="btn btn-primary btn-block">Guardar</button>`);$('#x').onclick=closeModal;$('#saveAssoc').onclick=async()=>{const nombre=$('#assocName').value.trim(),consentimiento_url=$('#assocConsent').value.trim()||null;if(!nombre)return alert('Escribe el nombre.');const result=a?await db.from('asociaciones').update({nombre,consentimiento_url}).eq('id',a.id):await db.from('asociaciones').insert({nombre,consentimiento_url});if(result.error)return alert(result.error.message);closeModal();renderAssociations();};}
-function openForms(a){showModal(`<div class="modal-head"><div><h3>Google Forms</h3><div class="help">${esc(a.nombre)}</div></div><button class="icon-btn" id="x">✕</button></div><div id="formsList">${a.formularios.map(f=>`<div class="item"><strong>${esc(f.nombre)}</strong><div class="meta">${esc(f.url)}</div><div class="actions"><button class="btn btn-danger" data-del-form="${f.id}">Eliminar</button></div></div>`).join('')||'<div class="empty">Sin formularios.</div>'}</div><div class="divider"></div><div class="field"><label>Nombre del formulario</label><input id="formName"></div><div class="field"><label>URL de Google Forms</label><input id="formUrl" type="url" placeholder="https://forms.gle/..."></div><button class="btn btn-primary btn-block" id="addForm">Agregar formulario</button>`);$('#x').onclick=closeModal;$('#addForm').onclick=async()=>{const nombre=$('#formName').value.trim(),url=$('#formUrl').value.trim();if(!nombre||!url)return alert('Completa nombre y URL.');const {error}=await db.from('formularios').insert({asociacion_id:a.id,nombre,url,orden:a.formularios.length+1});if(error)return alert(error.message);closeModal();await renderAssociations();openForms(state.associations.find(x=>x.id===a.id));};$$('[data-del-form]').forEach(b=>b.onclick=async()=>{if(!confirm('¿Eliminar este formulario?'))return;const {error}=await db.from('formularios').delete().eq('id',b.dataset.delForm);if(error)return alert(error.message);closeModal();await renderAssociations();openForms(state.associations.find(x=>x.id===a.id));});}
+function openAssociationForm(a=null){showModal(`<div class="modal-head"><h3>${a?'Editar':'Nueva'} asociación</h3><button class="icon-btn" id="x">✕</button></div><div class="field"><label>Nombre</label><input id="assocName" value="${esc(a?.nombre||'')}"></div><div class="field"><label>Google Forms del consentimiento informado</label><input id="assocConsent" type="url" placeholder="https://forms.gle/..." value="${esc(a?.consentimiento_url||'')}"><div class="help">El paciente primero verá una pantalla de lectura y, al aceptar, será enviado a este formulario.</div></div><button id="saveAssoc" class="btn btn-primary btn-block">Guardar</button>`);$('#x').onclick=closeModal;$('#saveAssoc').onclick=async()=>{const nombre=$('#assocName').value.trim(),consentimiento_url=$('#assocConsent').value.trim()||null;if(!nombre)return alert('Escribe el nombre.');const result=a?await db.from('asociaciones').update({nombre,consentimiento_url}).eq('id',a.id):await db.from('asociaciones').insert({nombre,consentimiento_url});if(result.error)return alert(result.error.message);closeModal();renderAssociations();};}
+function openForms(a){
+  showModal(`<div class="modal-head"><div><h3>Formularios y documentos</h3><div class="help">${esc(a.nombre)} · Puedes usar Google Forms o subir un archivo.</div></div><button class="icon-btn" id="x">✕</button></div>
+    <div id="formsList">${a.formularios.map(f=>`<div class="item"><strong>${esc(f.nombre)}</strong><div class="meta url-line">${esc(f.url)}</div><div class="actions"><a class="btn btn-light" href="${esc(f.url)}" target="_blank" rel="noopener">Abrir</a><button class="btn btn-danger" data-del-form="${f.id}">Eliminar</button></div></div>`).join('')||'<div class="empty">Sin formularios ni documentos.</div>'}</div>
+    <div class="divider"></div>
+    <div class="field"><label>Nombre</label><input id="formName" placeholder="Ej. PHQ-9, GAD-7, documento informativo..."></div>
+    <div class="field"><label>Enlace de Google Forms o archivo</label><input id="formUrl" type="url" placeholder="https://forms.gle/... o sube un archivo abajo"></div>
+    <div class="upload-box"><div class="upload-title">Subir formulario / documento</div><div class="help">PDF, DOC, DOCX, JPG, PNG o WEBP · máximo 10 MB.</div><div class="file-row"><input id="formFile" type="file" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.webp"><button id="uploadFormFile" type="button" class="btn btn-soft">Subir archivo</button></div><div id="formUploadState" class="upload-status"></div></div>
+    <div class="divider"></div><button class="btn btn-primary" id="addForm">Agregar</button>`);
+  $('#x').onclick=closeModal;
+  $('#uploadFormFile').onclick=async()=>{
+    const file=$('#formFile').files?.[0],btn=$('#uploadFormFile');
+    if(!file)return alert('Selecciona un archivo.');
+    btn.disabled=true;btn.textContent='Subiendo...';setUploadStatus('#formUploadState','Subiendo archivo...','loading');
+    try{
+      const url=await uploadAssociationDocument(file,'formularios');
+      $('#formUrl').value=url;
+      if(!$('#formName').value.trim())$('#formName').value=file.name.replace(/\.[^.]+$/,'');
+      setUploadStatus('#formUploadState','✓ Archivo subido. Ahora presiona “Agregar”.','ok');
+    }catch(e){console.error(e);setUploadStatus('#formUploadState',e.message||'No se pudo subir el archivo.','error');alert(`${e.message||'No se pudo subir el archivo.'}\n\nSi es la primera vez, ejecuta supabase/03_storage_documentos.sql en Supabase.`);}
+    finally{btn.disabled=false;btn.textContent='Subir archivo';}
+  };
+  $('#addForm').onclick=async()=>{
+    const nombre=$('#formName').value.trim(),url=$('#formUrl').value.trim();
+    if(!nombre||!url)return alert('Completa el nombre y agrega un enlace o sube un archivo.');
+    const {error}=await db.from('formularios').insert({asociacion_id:a.id,nombre,url,orden:a.formularios.length+1});
+    if(error)return alert(error.message);
+    closeModal();await renderAssociations();openForms(state.associations.find(x=>x.id===a.id));
+  };
+  $$('[data-del-form]').forEach(b=>b.onclick=async()=>{
+    if(!confirm('¿Eliminar este formulario o documento de la asociación? El archivo físico, si fue subido, se conserva en Storage.'))return;
+    const {error}=await db.from('formularios').delete().eq('id',b.dataset.delForm);
+    if(error)return alert(error.message);
+    closeModal();await renderAssociations();openForms(state.associations.find(x=>x.id===a.id));
+  });
+}
 
 async function renderSchedules(){
   const {data,error}=await db.from('horarios').select('*').eq('profesional_id',state.professional.id).order('dia_semana').order('hora_inicio');if(error){page.innerHTML='<div class="message error">No se pudo cargar tu disponibilidad.</div>';return;}state.schedules=data||[];const days=['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
