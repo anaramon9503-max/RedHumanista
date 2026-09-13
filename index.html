@@ -3,49 +3,540 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <meta name="theme-color" content="#795c66">
+  <meta name="theme-color" content="#725866">
+
   <title>Red de Atención Psicológica Humanista</title>
-  <link rel="stylesheet" href="assets/styles.css">
+
+  <style>
+    *{
+      box-sizing:border-box;
+    }
+
+    :root{
+      --vino:#725866;
+      --vino-oscuro:#56414b;
+      --rosa:#eee3e6;
+      --crema:#faf7f5;
+      --texto:#332d30;
+      --gris:#786f73;
+      --borde:#eadfe2;
+      --verde:#3f765d;
+    }
+
+    html,body{
+      margin:0;
+      min-height:100%;
+    }
+
+    body{
+      font-family:
+        -apple-system,
+        BlinkMacSystemFont,
+        "Segoe UI",
+        Roboto,
+        Helvetica,
+        Arial,
+        sans-serif;
+
+      color:var(--texto);
+
+      background:
+        radial-gradient(
+          circle at 0% 0%,
+          rgba(160,120,137,.18),
+          transparent 32%
+        ),
+        radial-gradient(
+          circle at 100% 15%,
+          rgba(208,178,166,.19),
+          transparent 28%
+        ),
+        var(--crema);
+    }
+
+    .hidden{
+      display:none !important;
+    }
+
+    .page{
+      width:min(100% - 30px,520px);
+      margin:auto;
+      padding:42px 0 50px;
+    }
+
+    .logo{
+      width:72px;
+      height:72px;
+      margin:0 auto 20px;
+
+      display:flex;
+      align-items:center;
+      justify-content:center;
+
+      border-radius:25px;
+
+      color:#fff;
+      font-size:22px;
+      font-weight:800;
+      letter-spacing:1px;
+
+      background:
+        linear-gradient(
+          145deg,
+          #59414d,
+          #846574
+        );
+
+      box-shadow:
+        0 15px 34px rgba(75,51,61,.22);
+    }
+
+    .intro{
+      text-align:center;
+      margin-bottom:28px;
+    }
+
+    .eyebrow{
+      margin-bottom:8px;
+
+      color:#8a707b;
+      font-size:12px;
+      font-weight:800;
+      letter-spacing:1.8px;
+      text-transform:uppercase;
+    }
+
+    h1{
+      margin:0;
+
+      font-size:clamp(29px,8vw,40px);
+      line-height:1.06;
+      letter-spacing:-1.2px;
+    }
+
+    .intro p{
+      margin:16px auto 0;
+      max-width:430px;
+
+      color:var(--gris);
+      font-size:15px;
+      line-height:1.6;
+    }
+
+    .card{
+      padding:24px;
+
+      background:rgba(255,255,255,.96);
+      border:1px solid rgba(255,255,255,.9);
+      border-radius:28px;
+
+      box-shadow:
+        0 18px 55px rgba(71,48,58,.10);
+    }
+
+    .card-header{
+      margin-bottom:22px;
+    }
+
+    .card-header h2{
+      margin:0 0 7px;
+
+      font-size:23px;
+      letter-spacing:-.5px;
+    }
+
+    .card-header p{
+      margin:0;
+
+      color:var(--gris);
+      font-size:14px;
+      line-height:1.5;
+    }
+
+    .field{
+      margin-bottom:17px;
+    }
+
+    label{
+      display:block;
+      margin-bottom:7px;
+
+      color:#5e5358;
+      font-size:13px;
+      font-weight:750;
+    }
+
+    input{
+      width:100%;
+
+      padding:15px 16px;
+
+      font-size:16px;
+      color:var(--texto);
+
+      background:#fff;
+      border:1px solid var(--borde);
+      border-radius:15px;
+
+      outline:none;
+      transition:.18s ease;
+    }
+
+    input::placeholder{
+      color:#aaa1a5;
+    }
+
+    input:focus{
+      border-color:#977785;
+      box-shadow:
+        0 0 0 4px rgba(114,88,102,.09);
+    }
+
+    button{
+      width:100%;
+
+      padding:15px 18px;
+
+      border:0;
+      border-radius:16px;
+
+      font-size:15px;
+      font-weight:800;
+
+      cursor:pointer;
+    }
+
+    .primary{
+      margin-top:4px;
+
+      color:white;
+
+      background:
+        linear-gradient(
+          135deg,
+          #725866,
+          #604752
+        );
+
+      box-shadow:
+        0 10px 24px rgba(96,71,82,.22);
+    }
+
+    .primary:active{
+      transform:scale(.99);
+    }
+
+    button:disabled{
+      opacity:.55;
+      cursor:not-allowed;
+    }
+
+    .message{
+      margin-bottom:15px;
+      padding:12px 14px;
+
+      border-radius:13px;
+
+      font-size:13px;
+      line-height:1.45;
+    }
+
+    .message.error{
+      color:#973a47;
+      background:#fff0f2;
+      border:1px solid #f4d4da;
+    }
+
+    .message.success{
+      color:#357052;
+      background:#eef8f2;
+      border:1px solid #d5ebdd;
+    }
+
+    .privacy{
+      display:flex;
+      gap:9px;
+      align-items:flex-start;
+
+      margin-top:18px;
+
+      color:#8b8185;
+      font-size:12px;
+      line-height:1.5;
+    }
+
+    .privacy span:first-child{
+      font-size:15px;
+    }
+
+    .success{
+      text-align:center;
+      padding:10px 0 3px;
+    }
+
+    .success-icon{
+      width:67px;
+      height:67px;
+
+      margin:0 auto 17px;
+
+      display:flex;
+      align-items:center;
+      justify-content:center;
+
+      color:var(--verde);
+      font-size:28px;
+      font-weight:900;
+
+      background:#eaf5ee;
+      border-radius:50%;
+    }
+
+    .success h2{
+      margin:0 0 10px;
+      font-size:25px;
+    }
+
+    .success p{
+      margin:0 auto 23px;
+      max-width:390px;
+
+      color:var(--gris);
+      line-height:1.6;
+    }
+
+    .secondary{
+      color:var(--vino);
+      background:var(--rosa);
+    }
+
+    .access{
+      margin-top:24px;
+      text-align:center;
+    }
+
+    .access a{
+      color:#8c7e84;
+      font-size:12px;
+      text-decoration:none;
+    }
+
+    .access a:hover{
+      color:var(--vino);
+    }
+
+    .footer{
+      margin-top:24px;
+
+      color:#aaa0a4;
+      font-size:11px;
+      text-align:center;
+    }
+
+    @media(max-width:480px){
+      .page{
+        width:calc(100% - 24px);
+        padding-top:30px;
+      }
+
+      .card{
+        padding:21px 18px;
+        border-radius:24px;
+      }
+
+      .logo{
+        width:64px;
+        height:64px;
+        border-radius:22px;
+      }
+
+      h1{
+        font-size:31px;
+      }
+    }
+  </style>
+
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="config.js"></script>
 </head>
+
 <body>
-  <main class="public-shell">
-    <section class="brand">
-      <div class="brand-mark">RH</div>
-      <h1>Red de Atención Psicológica Humanista</h1>
-      <p>Déjanos tus datos y un profesional se pondrá en contacto contigo para acordar tu cita.</p>
-    </section>
 
-    <section class="card" id="requestCard">
-      <h2>Solicitar atención</h2>
-      <p class="help">No necesitas elegir profesional, fecha ni horario.</p>
-      <div id="message" class="message hidden"></div>
-      <form id="requestForm">
-        <div class="field">
-          <label for="nombre">Nombre completo</label>
-          <input id="nombre" name="nombre" autocomplete="name" maxlength="100" required placeholder="Escribe tu nombre">
-        </div>
-        <div class="field">
-          <label for="telefono">Teléfono / WhatsApp</label>
-          <input id="telefono" name="telefono" inputmode="tel" autocomplete="tel" maxlength="20" required placeholder="Ej. 656 123 4567">
-        </div>
-        <button class="btn btn-primary btn-block" id="submitBtn" type="submit">Solicitar atención</button>
-      </form>
-    </section>
+  <main class="page">
 
-    <section class="card hidden" id="successCard">
-      <div class="success-screen">
-        <div class="success-icon">✓</div>
-        <h2>Recibimos tus datos</h2>
-        <p>Un profesional de la Red de Atención Psicológica Humanista se pondrá en contacto contigo para agendar tu cita.</p>
-        <button class="btn btn-soft" id="newRequestBtn" type="button">Enviar otra solicitud</button>
+    <div class="intro">
+
+      <div class="logo">
+        RH
       </div>
+
+      <div class="eyebrow">
+        Atención psicológica
+      </div>
+
+      <h1>
+        Red de Atención<br>
+        Psicológica Humanista
+      </h1>
+
+      <p>
+        Déjanos tus datos y uno de nuestros profesionales
+        se pondrá en contacto contigo para acompañarte
+        en el proceso de agendar tu cita.
+      </p>
+
+    </div>
+
+
+    <!-- FORMULARIO -->
+
+    <section
+      class="card"
+      id="requestCard"
+    >
+
+      <div class="card-header">
+
+        <h2>
+          Solicita atención
+        </h2>
+
+        <p>
+          Solo necesitamos algunos datos para comenzar.
+          No tienes que elegir profesional, fecha ni horario.
+        </p>
+
+      </div>
+
+
+      <div
+        id="message"
+        class="message hidden"
+      ></div>
+
+
+      <form id="requestForm">
+
+        <div class="field">
+
+          <label for="nombre">
+            Nombre completo
+          </label>
+
+          <input
+            id="nombre"
+            name="nombre"
+            autocomplete="name"
+            maxlength="100"
+            required
+            placeholder="Escribe tu nombre"
+          >
+
+        </div>
+
+
+        <div class="field">
+
+          <label for="telefono">
+            Teléfono / WhatsApp
+          </label>
+
+          <input
+            id="telefono"
+            name="telefono"
+            inputmode="tel"
+            autocomplete="tel"
+            maxlength="20"
+            required
+            placeholder="Ej. 656 123 4567"
+          >
+
+        </div>
+
+
+        <button
+          class="primary"
+          id="submitBtn"
+          type="submit"
+        >
+          Solicitar atención
+        </button>
+
+
+        <div class="privacy">
+
+          <span>♡</span>
+
+          <span>
+            Tus datos serán utilizados únicamente
+            para contactarte y dar seguimiento
+            a tu solicitud de atención.
+          </span>
+
+        </div>
+
+      </form>
+
     </section>
 
-    <div class="small-link"><a href="panel.html">Acceso para administrador y profesionales</a></div>
+
+    <!-- CONFIRMACIÓN -->
+
+    <section
+      class="card hidden"
+      id="successCard"
+    >
+
+      <div class="success">
+
+        <div class="success-icon">
+          ✓
+        </div>
+
+        <h2>
+          Recibimos tus datos
+        </h2>
+
+        <p>
+          Gracias por contactarnos.
+          Un profesional de la Red de Atención
+          Psicológica Humanista se pondrá en contacto
+          contigo para agendar tu cita.
+        </p>
+
+        <button
+          class="secondary"
+          id="newRequestBtn"
+          type="button"
+        >
+          Enviar otra solicitud
+        </button>
+
+      </div>
+
+    </section>
+
+
+    <div class="access">
+
+      <a href="panel.html">
+        Acceso para administrador y profesionales
+      </a>
+
+    </div>
+
+
+    <div class="footer">
+      Red de Atención Psicológica Humanista
+    </div>
+
   </main>
 
-  <script type="module" src="public.js"></script>
+
+  <script
+    type="module"
+    src="public.js"
+  ></script>
+
 </body>
 </html>
