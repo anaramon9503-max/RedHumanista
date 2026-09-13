@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#795c66">
+  <title>Humanista | Panel</title>
+  <link rel="stylesheet" href="assets/styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+  <script src="config.js"></script>
+</head>
+<body>
+  <section id="loginView" class="login-wrap">
+    <div class="brand"><div class="brand-mark">RH</div><h1>Panel Humanista</h1><p>Acceso para administración y profesionales.</p></div>
+    <div class="card login-card">
+      <div id="loginMessage" class="message hidden"></div>
+      <div class="field"><label>Correo</label><input id="loginEmail" type="email" autocomplete="email"></div>
+      <div class="field"><label>Contraseña</label><input id="loginPassword" type="password" autocomplete="current-password"></div>
+      <button id="loginBtn" class="btn btn-primary btn-block">Entrar</button>
+    </div>
+  </section>
+
+  <div id="appView" class="hidden">
+    <header class="topbar">
+      <div class="container topbar-inner">
+        <div class="topbrand"><div class="mini-mark">RH</div><div><strong>Red Humanista</strong><small id="roleLabel">Panel</small></div></div>
+        <div class="user-box"><span class="email" id="userEmail"></span><button id="logoutBtn" class="btn btn-light">Salir</button></div>
+      </div>
+    </header>
+
+    <main class="container panel-shell">
+      <div class="dashboard-grid">
+        <nav class="sidebar" id="sidebar"></nav>
+        <section class="content">
+          <div id="globalMessage" class="message hidden"></div>
+          <div id="page"></div>
+        </section>
+      </div>
+    </main>
+  </div>
+
+  <div id="modal" class="modal hidden"><div class="modal-card" id="modalCard"></div></div>
+  <script type="module" src="panel.js"></script>
+</body>
+</html>

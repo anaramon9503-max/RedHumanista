@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#795c66">
+  <title>Red de Atención Psicológica Humanista</title>
+  <link rel="stylesheet" href="assets/styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="config.js"></script>
+</head>
+<body>
+  <main class="public-shell">
+    <section class="brand">
+      <div class="brand-mark">RH</div>
+      <h1>Red de Atención Psicológica Humanista</h1>
+      <p>Déjanos tus datos y un profesional se pondrá en contacto contigo para acordar tu cita.</p>
+    </section>
+
+    <section class="card" id="requestCard">
+      <h2>Solicitar atención</h2>
+      <p class="help">No necesitas elegir profesional, fecha ni horario.</p>
+      <div id="message" class="message hidden"></div>
+      <form id="requestForm">
+        <div class="field">
+          <label for="nombre">Nombre completo</label>
+          <input id="nombre" name="nombre" autocomplete="name" maxlength="100" required placeholder="Escribe tu nombre">
+        </div>
+        <div class="field">
+          <label for="telefono">Teléfono / WhatsApp</label>
+          <input id="telefono" name="telefono" inputmode="tel" autocomplete="tel" maxlength="20" required placeholder="Ej. 656 123 4567">
+        </div>
+        <button class="btn btn-primary btn-block" id="submitBtn" type="submit">Solicitar atención</button>
+      </form>
+    </section>
+
+    <section class="card hidden" id="successCard">
+      <div class="success-screen">
+        <div class="success-icon">✓</div>
+        <h2>Recibimos tus datos</h2>
+        <p>Un profesional de la Red de Atención Psicológica Humanista se pondrá en contacto contigo para agendar tu cita.</p>
+        <button class="btn btn-soft" id="newRequestBtn" type="button">Enviar otra solicitud</button>
+      </div>
+    </section>
+
+    <div class="small-link"><a href="panel.html">Acceso para administrador y profesionales</a></div>
+  </main>
+
+  <script type="module" src="public.js"></script>
+</body>
+</html>
