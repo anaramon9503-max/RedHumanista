@@ -132,3 +132,19 @@ El bucket de Storage está pensado para **documentos base que se comparten con p
 
 ## Corrección de navegación móvil
 La barra inferior fue fijada a 66 px de alto, con cinco accesos iguales, iconos SVG de 20 px y etiquetas de 9.5 px. El CSS correctivo está al final de `asset/styles.css`.
+
+
+## Actualización 04 · notas internas y citas del profesional
+
+Después de las migraciones anteriores, ejecuta una sola vez `supabase/04_notas_internas.sql`.
+
+Cambios de esta versión:
+- El profesional puede crear una nueva cita desde **Mis citas** seleccionando únicamente uno de sus pacientes.
+- También puede agendar desde **Pacientes > Ver paciente**.
+- El profesional nunca puede elegir otro profesional para su cita.
+- Los servicios de la cita se filtran según el profesional asignado.
+- **Pacientes** queda más limpio: WhatsApp + Ver paciente.
+- Dentro de **Ver paciente** están consentimiento/formularios, cita, notas internas y cierre del proceso.
+- Las **Notas internas** solo pueden leerlas administración y el profesional asignado.
+- Cada nota guarda autor, fecha y hora.
+- El profesional solo puede editar/eliminar sus propias notas; administración puede administrar todas.

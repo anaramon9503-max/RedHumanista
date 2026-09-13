@@ -231,9 +231,7 @@ function paintPatients(){
   if(!rows.length){box.innerHTML='<div class="empty">No hay pacientes con este filtro.</div>';return;}
   box.innerHTML=rows.map(r=>patientCard(r)).join('');
   $$('[data-patient-wa]').forEach(b=>b.onclick=()=>contactPatient(b.dataset.patientWa));
-  $$('[data-patient-docs]').forEach(b=>b.onclick=()=>openPatientDocuments(b.dataset.patientDocs));
-  $$('[data-patient-appt]').forEach(b=>b.onclick=()=>openAppointmentForm(b.dataset.patientAppt));
-  $$('[data-patient-close]').forEach(b=>b.onclick=()=>closePatientProcess(b.dataset.patientClose));
+  $$('[data-patient-detail]').forEach(b=>b.onclick=()=>openPatientDetail(b.dataset.patientDetail));
 }
 function patientCard(r){
   const admin=state.profile.rol==='admin';
@@ -241,8 +239,71 @@ function patientCard(r){
   const assoc=r.asociaciones?.nombre||'Sin asociación';
   return `<article class="item patient-card"><div class="item-top"><div><h3>${esc(r.nombre)}</h3><div class="meta">📱 ${esc(r.telefono)}${admin?`<br>Profesional: <strong>${esc(pro)}</strong>`:''}<br>Asociación: ${esc(assoc)}</div></div>${statusBadge(r.estado)}</div>
     <div class="progress patient-progress"><span class="progress-step ${r.consentimiento_estado==='completado'?'done':''}">Consentimiento</span><span class="progress-step ${r.formularios_estado==='completado'?'done':''}">Formularios</span><span class="progress-step ${r.estado==='cita_agendada'?'done':''}">Cita</span></div>
-    <div class="patient-actions"><button class="btn btn-whatsapp" data-patient-wa="${r.id}">WhatsApp</button><button class="btn btn-soft" data-patient-docs="${r.id}">Seguimiento</button><button class="btn btn-primary" data-patient-appt="${r.id}">Agendar cita</button><button class="btn btn-danger" data-patient-close="${r.id}">Cerrar proceso</button></div></article>`;
+    <div class="patient-actions"><button class="btn btn-whatsapp" data-patient-wa="${r.id}">WhatsApp</button><button class="btn btn-soft" data-patient-detail="${r.id}">Ver paciente</button></div></article>`;
 }
+
+function openPatientDetail(id){
+  const r=state.requests.find(x=>x.id===id);if(!r)return;
+  const admin=state.profile.rol==='admin';
+  const pro=r.profesionales?.nombre||state.professional?.nombre||'Profesional';
+  const assoc=r.asociaciones?.nombre||'Sin asociación';
+  showModal(`<div class="modal-head"><div><h3>${esc(r.nombre)}</h3><div class="help">Ficha de seguimiento · solo equipo interno</div></div><button class="icon-btn" id="x">✕</button></div>
+    <div class="patient-summary"><div><strong>${esc(pro)}</strong><small>${admin?'Profesional asignado':'Tu paciente'}</small></div><span>${esc(r.telefono)}</span></div>
+    <div class="patient-detail-meta"><span>Asociación: <strong>${esc(assoc)}</strong></span>${statusBadge(r.estado)}</div>
+    <div class="progress patient-progress patient-progress-detail"><span class="progress-step ${r.consentimiento_estado==='completado'?'done':''}">Consentimiento</span><span class="progress-step ${r.formularios_estado==='completado'?'done':''}">Formularios</span><span class="progress-step ${r.estado==='cita_agendada'?'done':''}">Cita</span></div>
+    <div class="detail-action-grid">
+      <button class="btn btn-soft" id="detailFollow">Consentimiento / formularios</button>
+      <button class="btn btn-primary" id="detailAppt">+ Agendar cita</button>
+      <button class="btn btn-note" id="detailNotes">🔒 Notas internas</button>
+      <button class="btn btn-whatsapp" id="detailWa">WhatsApp</button>
+    </div>
+    <div class="internal-note-hint">Las notas internas solo pueden verlas administración y el profesional asignado.</div>
+    <div class="divider"></div>
+    <button class="btn btn-danger btn-compact" id="detailClose">Cerrar proceso</button>`);
+  $('#x').onclick=closeModal;
+  $('#detailFollow').onclick=()=>openPatientDocuments(id);
+  $('#detailAppt').onclick=()=>openAppointmentForm(id);
+  $('#detailNotes').onclick=()=>openPatientNotes(id);
+  $('#detailWa').onclick=()=>contactPatient(id);
+  $('#detailClose').onclick=async()=>{closeModal();await closePatientProcess(id);};
+}
+
+async function openPatientNotes(id){
+  const r=state.requests.find(x=>x.id===id);if(!r)return;
+  const {data,error}=await db.from('notas_paciente').select('*').eq('solicitud_id',id).order('created_at',{ascending:false});
+  if(error){
+    console.error(error);
+    return alert('No se pudieron cargar las notas. Ejecuta primero supabase/04_notas_internas.sql.');
+  }
+  const notes=data||[];
+  const authorName=state.profile.rol==='admin'?(state.profile.nombre||'Administración'):(state.professional?.nombre||state.profile.nombre||'Profesional');
+  const canManage=n=>state.profile.rol==='admin'||n.created_by===state.user.id;
+  showModal(`<div class="modal-head"><div><h3>🔒 Notas internas</h3><div class="help">${esc(r.nombre)} · visibles solo para el equipo autorizado</div></div><button class="icon-btn" id="x">✕</button></div>
+    <div class="note-editor"><textarea id="newPatientNote" maxlength="5000" placeholder="Escribe una nota interna sobre seguimiento, acuerdos u observaciones..."></textarea><div class="note-editor-foot"><small>Autor: ${esc(authorName)}</small><button class="btn btn-primary" id="savePatientNote">Agregar nota</button></div></div>
+    <div class="divider"></div>
+    <div class="note-list">${notes.length?notes.map(n=>`<article class="note-card"><div class="note-head"><div><strong>${esc(n.autor_nombre||'Equipo')}</strong><small>${new Date(n.created_at).toLocaleString('es-MX')}</small></div>${canManage(n)?`<div class="note-actions"><button class="note-link" data-note-edit="${n.id}">Editar</button><button class="note-link danger" data-note-delete="${n.id}">Eliminar</button></div>`:''}</div><div class="note-body">${esc(n.contenido).replace(/\n/g,'<br>')}</div></article>`).join(''):'<div class="empty compact-empty">Todavía no hay notas internas.</div>'}</div>`);
+  $('#x').onclick=()=>openPatientDetail(id);
+  $('#savePatientNote').onclick=async()=>{
+    const contenido=$('#newPatientNote').value.trim();
+    if(!contenido)return alert('Escribe una nota.');
+    const {error}=await db.from('notas_paciente').insert({solicitud_id:id,autor_nombre:authorName,contenido});
+    if(error)return alert(error.message);
+    notify('Nota guardada.');openPatientNotes(id);
+  };
+  $$('[data-note-edit]',modalCard).forEach(b=>b.onclick=async()=>{
+    const note=notes.find(n=>n.id===b.dataset.noteEdit);if(!note)return;
+    const contenido=prompt('Editar nota interna:',note.contenido);if(contenido===null)return;
+    if(!contenido.trim())return alert('La nota no puede quedar vacía.');
+    const {error}=await db.from('notas_paciente').update({contenido:contenido.trim()}).eq('id',note.id);
+    if(error)return alert(error.message);notify('Nota actualizada.');openPatientNotes(id);
+  });
+  $$('[data-note-delete]',modalCard).forEach(b=>b.onclick=async()=>{
+    if(!confirm('¿Eliminar esta nota interna?'))return;
+    const {error}=await db.from('notas_paciente').delete().eq('id',b.dataset.noteDelete);
+    if(error)return alert(error.message);notify('Nota eliminada.');openPatientNotes(id);
+  });
+}
+
 function contactPatient(id){
   const r=state.requests.find(x=>x.id===id);if(!r)return;
   const pro=r.profesionales?.nombre||state.professional?.nombre||'Red Humanista';
@@ -268,10 +329,20 @@ function openPatientDocuments(id){
 }
 
 async function openAppointmentForm(requestId, appointment=null){
-  const r=state.requests.find(x=>x.id===requestId);if(!r&&!appointment)return;
-  const req=r||{id:appointment.solicitud_id,nombre:appointment.paciente_nombre,telefono:appointment.paciente_telefono};
+  let r=state.requests.find(x=>x.id===requestId);
+  if(!r&&requestId){
+    const {data,error}=await db.from('solicitudes_atencion').select('*').eq('id',requestId).maybeSingle();
+    if(error)return alert(error.message);
+    r=data||null;
+    if(r)state.requests=[...state.requests.filter(x=>x.id!==r.id),r];
+  }
+  if(!r&&!appointment)return;
+  if(state.profile.rol==='profesional'&&r&&r.profesional_id!==state.professional?.id)return alert('Solo puedes agendar citas para tus pacientes asignados.');
+  const req=r||{id:appointment.solicitud_id,nombre:appointment.paciente_nombre,telefono:appointment.paciente_telefono,profesional_id:appointment.profesional_id};
+  const targetProfessional=state.profile.rol==='profesional'?state.professional?.id:(appointment?.profesional_id||r?.profesional_id||null);
   try{await loadServices(false);}catch(e){console.error(e);state.services=[];}
-  const serviceOptions=state.services.map(s=>`<option value="${s.id}" data-duration="${s.duracion_min}" ${appointment?.servicio_id===s.id?'selected':''}>${esc(s.nombre)} · ${s.duracion_min} min</option>`).join('');
+  const allowedServices=state.services.filter(s=>{const rels=(s.profesional_servicios||[]).filter(x=>x.activo);return !rels.length||!targetProfessional||rels.some(x=>x.profesional_id===targetProfessional);});
+  const serviceOptions=allowedServices.map(s=>`<option value="${s.id}" data-duration="${s.duracion_min}" ${appointment?.servicio_id===s.id?'selected':''}>${esc(s.nombre)} · ${s.duracion_min} min</option>`).join('');
   showModal(`<div class="modal-head"><div><h3>${appointment?'Mover / editar cita':'Registrar cita'}</h3><div class="help">${esc(req.nombre)}</div></div><button class="icon-btn" id="x">✕</button></div>
     <div class="field"><label>Servicio</label><select id="apptService"><option value="">Sin servicio específico</option>${serviceOptions}</select></div>
     <div class="grid-2"><div class="field"><label>Fecha</label><input id="apptDate" type="date" value="${appointment?.fecha||''}"></div><div class="field"><label>Hora</label><input id="apptTime" type="time" value="${appointment?.hora_inicio?.slice(0,5)||''}"></div></div>
@@ -281,10 +352,22 @@ async function openAppointmentForm(requestId, appointment=null){
   $('#x').onclick=closeModal;
   $('#apptService').onchange=()=>{const op=$('#apptService').selectedOptions[0];if(op?.dataset.duration)$('#apptDuration').value=op.dataset.duration;};
   $('#saveAppt').onclick=async()=>{const fecha=$('#apptDate').value,hora=$('#apptTime').value,duracion=Number($('#apptDuration').value||60),notas=$('#apptNotes').value.trim(),servicio_id=$('#apptService').value||null;if(!fecha||!hora)return alert('Selecciona fecha y hora.');
-    const professional_id=appointment?.profesional_id||r?.profesional_id||state.professional?.id;if(!professional_id)return alert('No hay profesional asignado.');
+    const professional_id=state.profile.rol==='profesional'?state.professional?.id:(appointment?.profesional_id||r?.profesional_id||state.professional?.id);if(!professional_id)return alert('No hay profesional asignado.');
     const payload={solicitud_id:req.id||null,profesional_id,servicio_id,paciente_nombre:req.nombre,paciente_telefono:req.telefono,fecha,hora_inicio:hora,duracion_min:duracion,notas};let result;
     if(appointment)result=await db.from('citas').update(payload).eq('id',appointment.id);else result=await db.from('citas').insert(payload);if(result.error)return alert(result.error.message);
     if(req.id)await db.from('solicitudes_atencion').update({estado:'cita_agendada'}).eq('id',req.id);closeModal();notify('Cita guardada.');appointment?renderAppointments():renderPatients();};
+}
+
+
+async function openProfessionalAppointmentPicker(){
+  if(!state.professional)return alert('Tu cuenta no está vinculada a un profesional.');
+  const {data,error}=await db.from('solicitudes_atencion').select('id,nombre,telefono,profesional_id,estado').eq('profesional_id',state.professional.id).neq('estado','cerrada').order('nombre');
+  if(error)return alert(error.message);
+  const patients=data||[];
+  if(!patients.length)return alert('Todavía no tienes pacientes asignados para agendar.');
+  showModal(`<div class="modal-head"><div><h3>Nueva cita</h3><div class="help">Selecciona uno de tus pacientes.</div></div><button class="icon-btn" id="x">✕</button></div><div class="field"><label>Paciente</label><select id="proNewPatient"><option value="">Selecciona...</option>${patients.map(p=>`<option value="${p.id}">${esc(p.nombre)} · ${esc(p.telefono)}</option>`).join('')}</select></div><button id="continueProAppt" class="btn btn-primary btn-block">Continuar</button>`);
+  $('#x').onclick=closeModal;
+  $('#continueProAppt').onclick=()=>{const id=$('#proNewPatient').value;if(!id)return alert('Selecciona un paciente.');closeModal();openAppointmentForm(id);};
 }
 
 async function renderAppointments(){
@@ -294,14 +377,14 @@ async function renderAppointments(){
     if(state.profile.rol==='profesional')q=q.eq('profesional_id',state.professional.id);
     const {data,error}=await q;if(error)throw error;state.appointments=data||[];
     const today=new Date().toISOString().slice(0,10),todayCount=state.appointments.filter(a=>a.fecha===today&&a.estado!=='cancelada').length,upcoming=state.appointments.filter(a=>a.fecha>=today&&!['cancelada','atendida'].includes(a.estado)).length,confirmed=state.appointments.filter(a=>a.estado==='confirmada').length;
-    page.innerHTML=`<div class="section-head"><div><h2>${state.profile.rol==='admin'?'Citas':'Mis citas'}</h2><p>Consulta, edita y da seguimiento a las citas registradas.</p></div>${state.profile.rol==='admin'?'<button id="newAdminAppt" class="btn btn-primary">+ Nueva cita</button>':''}</div>
+    page.innerHTML=`<div class="section-head"><div><h2>${state.profile.rol==='admin'?'Citas':'Mis citas'}</h2><p>Consulta, edita y da seguimiento a las citas registradas.</p></div>${state.profile.rol==='admin'?'<button id="newAdminAppt" class="btn btn-primary">+ Nueva cita</button>':'<button id="newProAppt" class="btn btn-primary">+ Nueva cita</button>'}</div>
       <div class="stats"><div class="stat"><strong>${state.appointments.length}</strong><span>Total</span></div><div class="stat"><strong>${todayCount}</strong><span>Hoy</span></div><div class="stat"><strong>${upcoming}</strong><span>Próximas</span></div><div class="stat"><strong>${confirmed}</strong><span>Confirmadas</span></div></div>
       <div class="toolbar"><select id="apptStatus"><option value="all">Todos los estados</option><option value="programada">Programadas</option><option value="confirmada">Confirmadas</option><option value="atendida">Atendidas</option><option value="cancelada">Canceladas</option><option value="no_asistio">No asistió</option></select>${state.profile.rol==='admin'?`<select id="apptPro"><option value="all">Todos los profesionales</option>${state.professionals.map(p=>`<option value="${p.id}">${esc(p.nombre)}</option>`).join('')}</select>`:''}<input class="grow" id="apptSearch" placeholder="Buscar paciente o teléfono"></div>
       <div class="list" id="appointmentList"></div>`;
     const paint=()=>{const st=$('#apptStatus')?.value||'all',pr=$('#apptPro')?.value||'all',qtxt=($('#apptSearch')?.value||'').toLowerCase().trim();const rows=state.appointments.filter(a=>(st==='all'||a.estado===st)&&(pr==='all'||a.profesional_id===pr)&&(!qtxt||a.paciente_nombre.toLowerCase().includes(qtxt)||String(a.paciente_telefono||'').includes(qtxt)));const box=$('#appointmentList');box.innerHTML=rows.length?rows.map(a=>`<article class="item"><div class="item-top"><div><h3>${esc(a.paciente_nombre)}</h3><div class="meta">📅 ${dateMX(a.fecha)} · ${time12(a.hora_inicio)} · ${a.duracion_min} min<br>${a.servicios?.nombre?`Servicio: <strong>${esc(a.servicios.nombre)}</strong><br>`:''}${state.profile.rol==='admin'?`Profesional: <strong>${esc(a.profesionales?.nombre||'—')}</strong><br>`:''}📱 ${esc(a.paciente_telefono)}</div></div>${statusBadge(a.estado)}</div><div class="actions"><button class="btn btn-soft" data-edit-appt="${a.id}">Editar</button><button class="btn btn-whatsapp" data-confirm-appt="${a.id}">WhatsApp</button><button class="btn btn-light" data-img-appt="${a.id}">Confirmación</button>${a.estado!=='atendida'?`<button class="btn btn-success" data-attended="${a.id}">Atendida</button>`:''}${a.estado!=='cancelada'?`<button class="btn btn-danger" data-cancel="${a.id}">Cancelar</button>`:''}</div></article>`).join(''):'<div class="empty">No hay citas con este filtro.</div>';
       $$('[data-edit-appt]').forEach(b=>b.onclick=()=>{const a=state.appointments.find(x=>x.id===b.dataset.editAppt);state.profile.rol==='admin'?openAdminAppointmentForm(a):openAppointmentForm(a.solicitud_id,a);});$$('[data-confirm-appt]').forEach(b=>b.onclick=()=>confirmAppointment(b.dataset.confirmAppt));$$('[data-img-appt]').forEach(b=>b.onclick=()=>appointmentImage(b.dataset.imgAppt));$$('[data-attended]').forEach(b=>b.onclick=()=>updateAppointmentStatus(b.dataset.attended,'atendida'));$$('[data-cancel]').forEach(b=>b.onclick=()=>updateAppointmentStatus(b.dataset.cancel,'cancelada'));
     };
-    $('#apptStatus').onchange=paint;if($('#apptPro'))$('#apptPro').onchange=paint;$('#apptSearch').oninput=paint;if($('#newAdminAppt'))$('#newAdminAppt').onclick=()=>openAdminAppointmentForm();paint();
+    $('#apptStatus').onchange=paint;if($('#apptPro'))$('#apptPro').onchange=paint;$('#apptSearch').oninput=paint;if($('#newAdminAppt'))$('#newAdminAppt').onclick=()=>openAdminAppointmentForm();if($('#newProAppt'))$('#newProAppt').onclick=openProfessionalAppointmentPicker;paint();
   }catch(e){console.error(e);page.innerHTML='<div class="message error">No se pudo cargar el panel de citas. Si acabas de actualizar el proyecto, ejecuta el archivo SQL de mejoras en Supabase.</div>';}
 }
 async function updateAppointmentStatus(id,estado){const {error}=await db.from('citas').update({estado}).eq('id',id);if(error)return notify(error.message,'error');notify('Cita actualizada.');renderAppointments();}
