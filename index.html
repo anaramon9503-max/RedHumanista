@@ -3,152 +3,57 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-  <meta name="theme-color" content="#078aa2">
+  <meta name="theme-color" content="#087f98">
   <title>Red de Atención Psicológica Humanista</title>
-  <link rel="stylesheet" href="./asset/styles.css">
+  <style>
+    *{box-sizing:border-box}
+    :root{--teal:#087f98;--teal-dark:#075f73;--green:#45a84b;--orange:#ef7534;--pink:#d92d7d;--purple:#7930a3;--text:#2f3d42;--muted:#718086;--border:#e3eceb;--success:#27774e}
+    html,body{margin:0;min-height:100%}
+    body{font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:var(--text);background:radial-gradient(circle at 0 0,rgba(8,127,152,.13),transparent 28%),radial-gradient(circle at 100% 0,rgba(239,117,52,.12),transparent 27%),radial-gradient(circle at 100% 100%,rgba(121,48,163,.10),transparent 30%),#fbfdfc}
+    .hidden{display:none!important}
+    .page{width:min(100% - 24px,560px);margin:auto;padding:28px 0 44px}
+    .intro{text-align:center;margin-bottom:20px}.logo{width:150px;height:150px;object-fit:contain;display:block;margin:0 auto 4px}.eyebrow{font-size:11px;font-weight:850;letter-spacing:1.6px;text-transform:uppercase;color:var(--teal);margin-bottom:5px}
+    h1{margin:0;font-size:clamp(28px,8vw,40px);line-height:1.06;letter-spacing:-1px}.title-1{color:var(--teal-dark)}.title-2{color:var(--orange)}.intro p{margin:13px auto 0;max-width:460px;color:var(--muted);font-size:14px;line-height:1.6}
+    .card{padding:22px;background:rgba(255,255,255,.97);border:1px solid var(--border);border-radius:24px;box-shadow:0 16px 48px rgba(20,75,80,.09)}
+    .card:before{content:"";display:block;width:72px;height:4px;border-radius:999px;margin:-4px auto 18px;background:linear-gradient(90deg,var(--teal),var(--green),var(--orange),var(--pink),var(--purple))}
+    .card-header{margin-bottom:18px}.card-header h2{margin:0 0 6px;color:var(--teal-dark);font-size:22px}.card-header p{margin:0;color:var(--muted);font-size:13px;line-height:1.5}
+    .field{margin-bottom:14px}label{display:block;margin-bottom:6px;color:#516267;font-size:12px;font-weight:800}input{width:100%;min-height:46px;padding:11px 13px;font-size:15px;color:var(--text);background:#fff;border:1px solid #d9e5e4;border-radius:13px;outline:none}input:focus{border-color:var(--teal);box-shadow:0 0 0 4px rgba(8,127,152,.09)}
+    button{border:0;border-radius:13px;font-weight:850;cursor:pointer}.primary{width:100%;min-height:45px;color:#fff;background:linear-gradient(100deg,var(--teal),var(--green),var(--orange),var(--pink),var(--purple));box-shadow:0 8px 22px rgba(8,127,152,.18)}button:disabled{opacity:.55;cursor:not-allowed}.secondary{min-height:42px;padding:10px 16px;color:var(--teal-dark);background:#eaf7f7}
+    .message{margin-bottom:13px;padding:11px 12px;border-radius:11px;font-size:12.5px;line-height:1.45}.message.error{color:#a43e4b;background:#fff0f2;border:1px solid #f0ced3}.message.success{color:#27774e;background:#edf8f1;border:1px solid #d2eada}
+    .privacy{display:flex;gap:8px;align-items:flex-start;margin-top:14px;color:#819095;font-size:11.5px;line-height:1.5}.privacy span:first-child{color:var(--purple);font-size:14px}.success{text-align:center;padding:6px 0}.success-icon{width:60px;height:60px;margin:0 auto 13px;display:grid;place-items:center;border-radius:50%;background:#eaf8ef;color:var(--success);font-size:26px;font-weight:900}.success h2{margin:0 0 8px;color:var(--teal-dark);font-size:23px}.success p{margin:0 auto 18px;max-width:400px;color:var(--muted);font-size:13px;line-height:1.6}.features{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin-top:16px}.feature{padding:10px 6px;border-radius:13px;background:rgba(255,255,255,.72);font-size:10.5px;color:#64757a;text-align:center}.feature b{display:block;margin-bottom:2px;color:#42575c}.feature:nth-child(1){border-top:3px solid var(--green)}.feature:nth-child(2){border-top:3px solid var(--orange)}.feature:nth-child(3){border-top:3px solid var(--purple)}.access{margin-top:18px;text-align:center}.access a{color:#7d898d;font-size:11px;text-decoration:none}.footer{margin-top:18px;color:#a0abad;font-size:10.5px;text-align:center}
+    @media(max-width:480px){.page{width:calc(100% - 18px);padding-top:18px}.logo{width:125px;height:125px}.card{padding:18px;border-radius:20px}.features{grid-template-columns:1fr 1fr 1fr}h1{font-size:30px}}
+  </style>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="./config.js"></script>
+  <script src="config.js"></script>
 </head>
-<body class="public-page">
-  <main class="public-shell">
+<body>
+  <main class="page">
+    <div class="intro">
+      <img class="logo" src="./asset/logo-humanista.png" alt="Red de Atención Psicológica Humanista">
+      <div class="eyebrow">Atención psicológica humanista</div>
+      <h1><span class="title-1">Red de Atención</span><br><span class="title-2">Psicológica Humanista</span></h1>
+      <p>Déjanos tu nombre y teléfono. Nuestro equipo te contactará para asignarte con el profesional adecuado y coordinar tu cita.</p>
+    </div>
 
-    <section class="public-hero" aria-labelledby="publicTitle">
-      <div class="decor decor-a"></div>
-      <div class="decor decor-b"></div>
-      <div class="decor decor-c"></div>
-
-      <img
-        class="public-logo"
-        src="./asset/logo-humanista.png"
-        alt="Logo de Red de Atención Psicológica Humanista"
-      >
-
-      <div class="public-kicker">Atención psicológica humanista</div>
-
-      <h1 id="publicTitle" class="public-title">
-        <span>Red de Atención</span>
-        <strong>Psicológica Humanista</strong>
-      </h1>
-
-      <div class="public-brand-line" aria-hidden="true"></div>
-
-      <p class="public-subtitle">
-        Déjanos tus datos y uno de nuestros profesionales se pondrá en contacto
-        contigo para acompañarte en el proceso de agendar tu cita.
-      </p>
-
-      <div class="public-values" aria-hidden="true">
-        <span>Escuchar</span>
-        <i></i>
-        <span>Acompañar</span>
-        <i></i>
-        <span>Transformar</span>
-      </div>
-    </section>
-
-    <section class="public-card" id="requestCard">
-      <div class="public-card-accent" aria-hidden="true"></div>
-
-      <div class="public-card-head">
-        <div class="public-card-icon" aria-hidden="true">♡</div>
-        <div>
-          <h2>Solicita atención</h2>
-          <p>
-            Solo necesitamos algunos datos para comenzar.
-            No tienes que elegir profesional, fecha ni horario.
-          </p>
-        </div>
-      </div>
-
+    <section class="card" id="requestCard">
+      <div class="card-header"><h2>Solicita atención</h2><p>No necesitas elegir profesional, servicio, fecha ni horario en este momento.</p></div>
       <div id="message" class="message hidden"></div>
-
-      <form id="requestForm" class="public-form">
-        <div class="field">
-          <label for="nombre">Nombre completo</label>
-          <div class="input-wrap">
-            <span class="input-icon" aria-hidden="true">●</span>
-            <input
-              id="nombre"
-              name="nombre"
-              autocomplete="name"
-              maxlength="100"
-              required
-              placeholder="Escribe tu nombre"
-            >
-          </div>
-        </div>
-
-        <div class="field">
-          <label for="telefono">Teléfono / WhatsApp</label>
-          <div class="input-wrap">
-            <span class="input-icon phone" aria-hidden="true">☎</span>
-            <input
-              id="telefono"
-              name="telefono"
-              inputmode="tel"
-              autocomplete="tel"
-              maxlength="20"
-              required
-              placeholder="Ej. 656 123 4567"
-            >
-          </div>
-        </div>
-
-        <button class="public-submit" id="submitBtn" type="submit">
-          <span>Solicitar atención</span>
-          <span class="submit-arrow" aria-hidden="true">→</span>
-        </button>
-
-        <div class="public-privacy">
-          <span class="privacy-icon" aria-hidden="true">⌾</span>
-          <span>
-            Tus datos serán utilizados únicamente para contactarte y dar
-            seguimiento a tu solicitud de atención.
-          </span>
-        </div>
+      <form id="requestForm">
+        <div class="field"><label for="nombre">Nombre completo</label><input id="nombre" name="nombre" autocomplete="name" maxlength="100" required placeholder="Escribe tu nombre"></div>
+        <div class="field"><label for="telefono">Teléfono / WhatsApp</label><input id="telefono" name="telefono" inputmode="tel" autocomplete="tel" maxlength="20" required placeholder="Ej. 656 123 4567"></div>
+        <button class="primary" id="submitBtn" type="submit">Solicitar atención</button>
+        <div class="privacy"><span>♡</span><span>Tus datos se utilizarán únicamente para contactarte y dar seguimiento a tu solicitud.</span></div>
       </form>
     </section>
 
-    <section class="public-card hidden" id="successCard">
-      <div class="public-card-accent" aria-hidden="true"></div>
-      <div class="success-screen">
-        <div class="success-icon">✓</div>
-        <h2>Recibimos tus datos</h2>
-        <p>
-          Gracias por contactarnos. Un profesional de la Red de Atención
-          Psicológica Humanista se pondrá en contacto contigo para agendar tu cita.
-        </p>
-        <button class="public-secondary" id="newRequestBtn" type="button">
-          Enviar otra solicitud
-        </button>
-      </div>
+    <section class="card hidden" id="successCard">
+      <div class="success"><div class="success-icon">✓</div><h2>Recibimos tus datos</h2><p>Gracias por contactarnos. Un integrante de la Red se comunicará contigo para continuar con tu proceso y coordinar tu atención.</p><button class="secondary" id="newRequestBtn" type="button">Enviar otra solicitud</button></div>
     </section>
 
-    <section class="public-benefits" aria-label="Valores de atención">
-      <article>
-        <div class="benefit-icon green">❧</div>
-        <div><strong>Atención humana</strong><span>y ética</span></div>
-      </article>
-      <article>
-        <div class="benefit-icon orange">♡</div>
-        <div><strong>Espacios seguros</strong><span>y sin juicios</span></div>
-      </article>
-      <article>
-        <div class="benefit-icon purple">◎</div>
-        <div><strong>Profesionales</strong><span>comprometidos</span></div>
-      </article>
-    </section>
-
-    <div class="public-access">
-      <a href="./panel.html">Acceso para administración y profesionales</a>
-    </div>
-
-    <footer class="public-footer">
-      <div>SALUD MENTAL <b>•</b> VÍNCULOS <b>•</b> BIENESTAR</div>
-      <small>Red de Atención Psicológica Humanista</small>
-    </footer>
+    <div class="features"><div class="feature"><b>Atención humana</b>y cercana</div><div class="feature"><b>Proceso claro</b>paso a paso</div><div class="feature"><b>Profesionales</b>comprometidos</div></div>
+    <div class="access"><a href="./panel.html">Acceso para administración y profesionales</a></div>
+    <div class="footer">Red de Atención Psicológica Humanista</div>
   </main>
-
-  <script type="module" src="./public.js"></script>
+  <script src="public.js"></script>
 </body>
 </html>

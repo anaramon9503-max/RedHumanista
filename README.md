@@ -1,3 +1,17 @@
+# Red Humanista — versión con panel completo
+
+Esta versión incluye **Solicitudes, Citas, Profesionales, Servicios, Horarios y Asociaciones**, además de la página pública con nombre + teléfono.
+
+## Actualización de una instalación existente
+
+1. Sube todos los archivos de este ZIP a GitHub/Vercel.
+2. En Supabase → SQL Editor ejecuta **una sola vez** `supabase/02_mejoras_panel.sql`.
+3. Vuelve a abrir `panel.html`.
+
+> La página pública sigue pidiendo únicamente nombre y teléfono. Servicios y horarios son internos para administración/profesionales.
+
+---
+
 # Humanista Agenda
 
 Sistema independiente para **Red de Atención Psicológica Humanista**.
