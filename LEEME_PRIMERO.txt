@@ -1,25 +1,33 @@
-RED HUMANISTA - VERSION DISEÑO + FUNCIONALIDAD
+RED HUMANISTA — VERSIÓN SIN CARPETAS
 
-Esta versión parte de la versión funcional con:
-- Solicitudes (admin)
-- Pacientes (admin / profesional asignado)
-- Citas para admin y profesionales
-- Servicios
-- Horarios
-- Asociaciones
-- Consentimiento / formularios
-- Notas internas con permisos
+Esta versión está hecha específicamente para que subas TODOS los archivos directamente a la raíz del repositorio.
+NO necesitas subir carpetas asset/, supabase/ ni api/.
 
-CAMBIO VISUAL:
-- panel.html usa asset/panel-app.css
-- barra inferior móvil tipo app: Solicitudes / Pacientes / Citas / Profes. / Más
-- iconos estables tipo emoji
-- estadísticas 2 x 2
-- botones compactos
-- tarjetas redondeadas
-- turquesa principal con acentos del logo
+SUBE ESTOS ARCHIVOS A LA RAÍZ:
+- index.html
+- panel.html
+- panel.js
+- public.js
+- config.js
+- consentimiento.html
+- styles.css
+- logo-humanista.png
+- create-user.js
+- delete-professional.js
+- package.json
+- vercel.json
 
-SUPABASE:
-Si ya ejecutaste 02_mejoras_panel.sql, 03_storage_documentos.sql y 04_notas_internas.sql, NO ejecutes nada nuevo.
+Los SQL también están en la raíz solo como respaldo. Si ya ejecutaste 02, 03 y 04 NO los vuelvas a ejecutar.
 
-Sube/reemplaza todo el contenido del proyecto en GitHub/Vercel.
+IMPORTANTE EN VERCEL:
+Conserva las variables de entorno SUPABASE_URL, SUPABASE_ANON_KEY y SUPABASE_SERVICE_ROLE_KEY que ya usabas para crear accesos de profesionales.
+
+Después de subir los archivos, espera el deploy y abre /panel.html.
+
+CAMBIOS DE ESTA VERSIÓN:
+- Solicitudes: Editar + Eliminar.
+- Servicios: Editar + Eliminar.
+- Profesionales: Editar + Eliminar.
+- Asociaciones: Editar + Eliminar.
+- Horarios: conserva Editar + Eliminar.
+- Se conservan ficha del paciente, notas internas, consentimiento, formularios, citas y documentos.

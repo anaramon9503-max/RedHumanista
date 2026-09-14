@@ -164,11 +164,41 @@ function paintRequests(){
   box.innerHTML=rows.map(r=>requestCard(r)).join('');
   $$('[data-assign]').forEach(b=>b.onclick=()=>openAssign(b.dataset.assign));
   $$('[data-wa-patient]').forEach(b=>b.onclick=()=>waPatient(b.dataset.waPatient));
+  $$('[data-edit-request]').forEach(b=>b.onclick=()=>openRequestEdit(b.dataset.editRequest));
+  $$('[data-del-request]').forEach(b=>b.onclick=()=>deleteRequest(b.dataset.delRequest));
 }
 function requestCard(r){
   const pro=r.profesionales?.nombre||'Sin asignar';
   return `<article class="item request-card"><div class="item-top"><div><h3>${esc(r.nombre)}</h3><div class="meta">📱 ${esc(r.telefono)}<br>Profesional: <strong>${esc(pro)}</strong><br>Recibida: ${new Date(r.created_at).toLocaleString('es-MX')}</div></div>${r.profesional_id?'<span class="badge ok">Asignada</span>':'<span class="badge pending">Pendiente</span>'}</div>
-    <div class="request-actions"><button class="btn btn-soft" data-assign="${r.id}">${r.profesional_id?'Cambiar profesional':'Asignar profesional'}</button><button class="btn btn-whatsapp" data-wa-patient="${r.id}">WhatsApp paciente</button></div></article>`;
+    <div class="request-actions"><button class="btn btn-soft" data-assign="${r.id}">${r.profesional_id?'Cambiar profesional':'Asignar profesional'}</button><button class="btn btn-whatsapp" data-wa-patient="${r.id}">WhatsApp paciente</button><button class="btn btn-soft" data-edit-request="${r.id}">Editar</button><button class="btn btn-danger" data-del-request="${r.id}">Eliminar</button></div></article>`;
+}
+function openRequestEdit(id){
+  const r=state.requests.find(x=>x.id===id);if(!r)return;
+  showModal(`<div class="modal-head"><div><h3>Editar solicitud</h3><div class="help">Actualiza los datos del paciente y su asignación.</div></div><button class="icon-btn" id="x">✕</button></div>
+    <div class="field"><label>Nombre</label><input id="reqEditName" value="${esc(r.nombre||'')}"></div>
+    <div class="field"><label>Teléfono</label><input id="reqEditPhone" inputmode="tel" value="${esc(r.telefono||'')}"></div>
+    <div class="field"><label>Profesional</label><select id="reqEditPro"><option value="">Sin asignar</option>${state.professionals.map(p=>`<option value="${p.id}" ${r.profesional_id===p.id?'selected':''}>${esc(p.nombre)}</option>`).join('')}</select></div>
+    <div class="field"><label>Asociación</label><select id="reqEditAssoc"><option value="">Sin asociación</option>${state.associations.map(a=>`<option value="${a.id}" ${r.asociacion_id===a.id?'selected':''}>${esc(a.nombre)}</option>`).join('')}</select></div>
+    <button class="btn btn-primary btn-block" id="saveRequestEdit">Guardar cambios</button>`);
+  $('#x').onclick=closeModal;
+  $('#saveRequestEdit').onclick=async()=>{
+    const nombre=$('#reqEditName').value.trim(),telefono=digits($('#reqEditPhone').value),profesional_id=$('#reqEditPro').value||null,asociacion_id=$('#reqEditAssoc').value||null;
+    if(nombre.length<2)return alert('Escribe un nombre válido.');
+    if(telefono.length<10||telefono.length>15)return alert('Escribe un teléfono de 10 a 15 dígitos.');
+    const payload={nombre,telefono,profesional_id,asociacion_id};
+    if(!profesional_id){payload.estado='pendiente';payload.fecha_asignacion=null;}
+    else if(!r.profesional_id||r.estado==='pendiente'){payload.estado='asignada';payload.fecha_asignacion=new Date().toISOString();}
+    const {error}=await db.from('solicitudes_atencion').update(payload).eq('id',id);
+    if(error)return alert(error.message);
+    closeModal();notify('Solicitud actualizada.');renderRequests();
+  };
+}
+async function deleteRequest(id){
+  const r=state.requests.find(x=>x.id===id);
+  if(!r||!confirm(`¿Eliminar definitivamente la solicitud de ${r.nombre}? Esta acción no se puede deshacer.`))return;
+  const {error}=await db.from('solicitudes_atencion').delete().eq('id',id);
+  if(error)return alert(error.message);
+  notify('Solicitud eliminada.');renderRequests();
 }
 function openAssign(id){
   const r=state.requests.find(x=>x.id===id); if(!r)return;
@@ -274,7 +304,7 @@ async function openPatientNotes(id){
   const {data,error}=await db.from('notas_paciente').select('*').eq('solicitud_id',id).order('created_at',{ascending:false});
   if(error){
     console.error(error);
-    return alert('No se pudieron cargar las notas. Ejecuta primero supabase/04_notas_internas.sql.');
+    return alert('No se pudieron cargar las notas. Ejecuta primero 04_notas_internas.sql.');
   }
   const notes=data||[];
   const authorName=state.profile.rol==='admin'?(state.profile.nombre||'Administración'):(state.professional?.nombre||state.profile.nombre||'Profesional');
@@ -390,7 +420,7 @@ async function renderAppointments(){
 }
 async function updateAppointmentStatus(id,estado){const {error}=await db.from('citas').update({estado}).eq('id',id);if(error)return notify(error.message,'error');notify('Cita actualizada.');renderAppointments();}
 function confirmAppointment(id){const a=state.appointments.find(x=>x.id===id);if(!a)return;const pro=a.profesionales?.nombre||state.professional?.nombre||'tu profesional';const text=`Hola ${a.paciente_nombre} 😊 Tu cita con Red de Atención Psicológica Humanista está programada.\n\n👤 Profesional: ${pro}\n📅 Fecha: ${dateMX(a.fecha)}\n🕐 Hora: ${time12(a.hora_inicio)}\n\nSi necesitas hacer un cambio, comunícate con nosotros.`;window.open(`https://wa.me/${waPhone(a.paciente_telefono)}?text=${encodeURIComponent(text)}`,'_blank');}
-function appointmentImage(id){const a=state.appointments.find(x=>x.id===id);if(!a)return;const pro=a.profesionales?.nombre||state.professional?.nombre||'Profesional';showModal(`<div class="modal-head"><h3>Confirmación de cita</h3><button class="icon-btn" id="x">✕</button></div><div class="confirmation-preview" id="confirmation"><div class="confirm-mark"><img src="./asset/logo-humanista.png" alt="Red Humanista"></div><h3>Red de Atención Psicológica Humanista</h3><p>Confirmación de cita</p><div class="big-date">${dateMX(a.fecha)} · ${time12(a.hora_inicio)}</div><p><strong>${esc(a.paciente_nombre)}</strong></p><p>Profesional: ${esc(pro)}</p>${a.servicios?.nombre?`<p>Servicio: ${esc(a.servicios.nombre)}</p>`:''}</div><button class="btn btn-primary" id="downloadConfirm" style="margin-top:12px">Descargar imagen</button>`);$('#x').onclick=closeModal;$('#downloadConfirm').onclick=async()=>{const canvas=await html2canvas($('#confirmation'),{scale:2,backgroundColor:'#ffffff'});const link=document.createElement('a');link.download=`confirmacion-${a.paciente_nombre.replace(/\s+/g,'-').toLowerCase()}.png`;link.href=canvas.toDataURL('image/png');link.click();};}
+function appointmentImage(id){const a=state.appointments.find(x=>x.id===id);if(!a)return;const pro=a.profesionales?.nombre||state.professional?.nombre||'Profesional';showModal(`<div class="modal-head"><h3>Confirmación de cita</h3><button class="icon-btn" id="x">✕</button></div><div class="confirmation-preview" id="confirmation"><div class="confirm-mark"><img src="./logo-humanista.png" alt="Red Humanista"></div><h3>Red de Atención Psicológica Humanista</h3><p>Confirmación de cita</p><div class="big-date">${dateMX(a.fecha)} · ${time12(a.hora_inicio)}</div><p><strong>${esc(a.paciente_nombre)}</strong></p><p>Profesional: ${esc(pro)}</p>${a.servicios?.nombre?`<p>Servicio: ${esc(a.servicios.nombre)}</p>`:''}</div><button class="btn btn-primary" id="downloadConfirm" style="margin-top:12px">Descargar imagen</button>`);$('#x').onclick=closeModal;$('#downloadConfirm').onclick=async()=>{const canvas=await html2canvas($('#confirmation'),{scale:2,backgroundColor:'#ffffff'});const link=document.createElement('a');link.download=`confirmacion-${a.paciente_nombre.replace(/\s+/g,'-').toLowerCase()}.png`;link.href=canvas.toDataURL('image/png');link.click();};}
 
 
 async function openAdminAppointmentForm(a=null){
@@ -408,7 +438,14 @@ async function openAdminAppointmentForm(a=null){
 }
 
 async function renderServices(){
-  try{await Promise.all([loadServices(true),loadProfessionals()]);const active=state.services.filter(s=>s.activo).length;page.innerHTML=`<div class="section-head"><div><h2>Servicios</h2><p>Administra los tipos de atención y su duración. También puedes asignarlos a profesionales.</p></div><button id="newService" class="btn btn-primary">+ Nuevo servicio</button></div><div class="stats"><div class="stat"><strong>${state.services.length}</strong><span>Total</span></div><div class="stat"><strong>${active}</strong><span>Activos</span></div><div class="stat"><strong>${state.professionals.length}</strong><span>Profesionales</span></div><div class="stat"><strong>${state.services.reduce((n,s)=>n+(s.profesional_servicios||[]).filter(x=>x.activo).length,0)}</strong><span>Asignaciones</span></div></div><div class="list">${state.services.length?state.services.map(s=>{const ids=(s.profesional_servicios||[]).filter(x=>x.activo).map(x=>x.profesional_id),names=state.professionals.filter(p=>ids.includes(p.id)).map(p=>p.nombre);return `<article class="item"><div class="item-top"><div><h3>${esc(s.nombre)}</h3><div class="meta">Duración: ${s.duracion_min} min${s.descripcion?`<br>${esc(s.descripcion)}`:''}</div>${names.length?`<div class="service-tags">${names.map(n=>`<span class="service-tag">${esc(n)}</span>`).join('')}</div>`:'<div class="meta">Sin profesionales asignados</div>'}</div><span class="badge ${s.activo?'ok':'neutral'}">${s.activo?'Activo':'Inactivo'}</span></div><div class="actions"><button class="btn btn-soft" data-edit-service="${s.id}">Editar</button></div></article>`}).join(''):'<div class="empty">No hay servicios. Crea el primero.</div>'}</div>`;$('#newService').onclick=()=>openServiceForm();$$('[data-edit-service]').forEach(b=>b.onclick=()=>openServiceForm(state.services.find(x=>x.id===b.dataset.editService)));}catch(e){console.error(e);page.innerHTML='<div class="message error">No se pudieron cargar los servicios. Ejecuta supabase/02_mejoras_panel.sql una vez en Supabase.</div>';}
+  try{await Promise.all([loadServices(true),loadProfessionals()]);const active=state.services.filter(s=>s.activo).length;page.innerHTML=`<div class="section-head"><div><h2>Servicios</h2><p>Administra los tipos de atención y su duración. También puedes asignarlos a profesionales.</p></div><button id="newService" class="btn btn-primary">+ Nuevo servicio</button></div><div class="stats"><div class="stat"><strong>${state.services.length}</strong><span>Total</span></div><div class="stat"><strong>${active}</strong><span>Activos</span></div><div class="stat"><strong>${state.professionals.length}</strong><span>Profesionales</span></div><div class="stat"><strong>${state.services.reduce((n,s)=>n+(s.profesional_servicios||[]).filter(x=>x.activo).length,0)}</strong><span>Asignaciones</span></div></div><div class="list">${state.services.length?state.services.map(s=>{const ids=(s.profesional_servicios||[]).filter(x=>x.activo).map(x=>x.profesional_id),names=state.professionals.filter(p=>ids.includes(p.id)).map(p=>p.nombre);return `<article class="item"><div class="item-top"><div><h3>${esc(s.nombre)}</h3><div class="meta">Duración: ${s.duracion_min} min${s.descripcion?`<br>${esc(s.descripcion)}`:''}</div>${names.length?`<div class="service-tags">${names.map(n=>`<span class="service-tag">${esc(n)}</span>`).join('')}</div>`:'<div class="meta">Sin profesionales asignados</div>'}</div><span class="badge ${s.activo?'ok':'neutral'}">${s.activo?'Activo':'Inactivo'}</span></div><div class="actions"><button class="btn btn-soft" data-edit-service="${s.id}">Editar</button><button class="btn btn-danger" data-del-service="${s.id}">Eliminar</button></div></article>`}).join(''):'<div class="empty">No hay servicios. Crea el primero.</div>'}</div>`;$('#newService').onclick=()=>openServiceForm();$$('[data-edit-service]').forEach(b=>b.onclick=()=>openServiceForm(state.services.find(x=>x.id===b.dataset.editService)));$$('[data-del-service]').forEach(b=>b.onclick=()=>deleteService(b.dataset.delService));}catch(e){console.error(e);page.innerHTML='<div class="message error">No se pudieron cargar los servicios. Ejecuta 02_mejoras_panel.sql una vez en Supabase.</div>';}
+}
+async function deleteService(id){
+  const s=state.services.find(x=>x.id===id);if(!s)return;
+  if(!confirm(`¿Eliminar el servicio “${s.nombre}”? Las citas anteriores conservarán sus datos, pero el servicio dejará de estar disponible.`))return;
+  const {error}=await db.from('servicios').delete().eq('id',id);
+  if(error)return alert(error.message);
+  notify('Servicio eliminado.');renderServices();
 }
 
 function openServiceForm(s=null){const assigned=new Set((s?.profesional_servicios||[]).filter(x=>x.activo).map(x=>x.profesional_id));showModal(`<div class="modal-head"><div><h3>${s?'Editar servicio':'Nuevo servicio'}</h3><div class="help">Configura el servicio y a quiénes se puede asignar.</div></div><button class="icon-btn" id="x">✕</button></div><div class="field"><label>Nombre</label><input id="serviceName" value="${esc(s?.nombre||'')}"></div><div class="field"><label>Descripción (opcional)</label><textarea id="serviceDesc">${esc(s?.descripcion||'')}</textarea></div><div class="field"><label>Duración (minutos)</label><input id="serviceDuration" type="number" min="15" max="240" step="15" value="${s?.duracion_min||60}"></div><label class="field-check"><input id="serviceActive" type="checkbox" ${s?.activo===false?'':'checked'}> Servicio activo</label><div class="divider"></div><div class="help"><strong>Profesionales</strong> · deja todos sin marcar si el servicio es general.</div><div class="check-list">${state.professionals.map(p=>`<label class="check-option"><input type="checkbox" name="servicePro" value="${p.id}" ${assigned.has(p.id)?'checked':''}>${esc(p.nombre)}</label>`).join('')||'<div class="help">Primero crea profesionales.</div>'}</div><div class="divider"></div><button class="btn btn-primary" id="saveService">Guardar servicio</button>`);$('#x').onclick=closeModal;$('#saveService').onclick=async()=>{const nombre=$('#serviceName').value.trim(),descripcion=$('#serviceDesc').value.trim()||null,duracion_min=Number($('#serviceDuration').value||60),activo=$('#serviceActive').checked,pros=$$('input[name="servicePro"]:checked').map(x=>x.value);if(!nombre)return alert('Escribe el nombre del servicio.');let id=s?.id;if(s){const {error}=await db.from('servicios').update({nombre,descripcion,duracion_min,activo}).eq('id',id);if(error)return alert(error.message);}else{const {data,error}=await db.from('servicios').insert({nombre,descripcion,duracion_min,activo}).select('id').single();if(error)return alert(error.message);id=data.id;}const del=await db.from('profesional_servicios').delete().eq('servicio_id',id);if(del.error)return alert(del.error.message);if(pros.length){const {error}=await db.from('profesional_servicios').insert(pros.map(profesional_id=>({profesional_id,servicio_id:id,activo:true})));if(error)return alert(error.message);}closeModal();notify('Servicio guardado.');renderServices();};}
@@ -428,10 +465,30 @@ async function renderProfessionals(){
   }
   page.innerHTML=`<div class="section-head"><div><h2>Profesionales</h2><p>Crea accesos, registra WhatsApp y asigna pacientes.</p></div><div class="head-actions">${!state.professional?'<button id="selfPro" class="btn btn-soft">También atiendo pacientes</button>':''}<button id="newPro" class="btn btn-primary">+ Nuevo profesional</button></div></div>
     ${state.professional?`<div class="self-pro-note"><span>✓</span><div><strong>Tu cuenta también está vinculada como profesional</strong><small>Puedes asignarte pacientes desde Solicitudes y verlos en Pacientes → Mis pacientes.</small></div></div>`:''}
-    <div class="list">${state.professionals.length?state.professionals.map(p=>`<article class="item"><div class="item-top"><div><h3>${esc(p.nombre)} ${p.usuario_id===state.user.id?'<span class="mini-you">Tú</span>':''}</h3><div class="meta">WhatsApp: ${esc(p.whatsapp||'Sin registrar')}<br>Acceso: ${p.usuario_id?'Activo':'Sin acceso'}</div></div><span class="badge ${p.usuario_id?'ok':'pending'}">${p.usuario_id?'Con acceso':'Pendiente'}</span></div><div class="actions"><button class="btn btn-soft" data-edit-pro="${p.id}">Editar</button></div></article>`).join(''):'<div class="empty">No hay profesionales.</div>'}</div>`;
+    <div class="list">${state.professionals.length?state.professionals.map(p=>`<article class="item"><div class="item-top"><div><h3>${esc(p.nombre)} ${p.usuario_id===state.user.id?'<span class="mini-you">Tú</span>':''}</h3><div class="meta">WhatsApp: ${esc(p.whatsapp||'Sin registrar')}<br>Acceso: ${p.usuario_id?'Activo':'Sin acceso'}</div></div><span class="badge ${p.usuario_id?'ok':'pending'}">${p.usuario_id?'Con acceso':'Pendiente'}</span></div><div class="actions"><button class="btn btn-soft" data-edit-pro="${p.id}">Editar</button><button class="btn btn-danger" data-del-pro="${p.id}">Eliminar</button></div></article>`).join(''):'<div class="empty">No hay profesionales.</div>'}</div>`;
   $('#newPro').onclick=()=>openProfessionalForm();
   if($('#selfPro'))$('#selfPro').onclick=openAdminProfessionalForm;
   $$('[data-edit-pro]').forEach(b=>b.onclick=()=>openProfessionalForm(state.professionals.find(x=>x.id===b.dataset.editPro)));
+  $$('[data-del-pro]').forEach(b=>b.onclick=()=>deleteProfessional(b.dataset.delPro));
+}
+async function deleteProfessional(id){
+  const p=state.professionals.find(x=>x.id===id);if(!p)return;
+  if(!confirm(`¿Eliminar a ${p.nombre}? Sus horarios y asignaciones se eliminarán. Si tiene citas registradas, el sistema no permitirá borrarlo.`))return;
+  const {count,error:countError}=await db.from('citas').select('id',{count:'exact',head:true}).eq('profesional_id',id);
+  if(countError)return alert(countError.message);
+  if((count||0)>0)return alert('No se puede eliminar este profesional porque tiene citas registradas. Reasigna o elimina esas citas primero.');
+  if(p.usuario_id&&p.usuario_id!==state.user.id){
+    const session=(await db.auth.getSession()).data.session;
+    if(!session)return alert('Tu sesión expiró. Vuelve a iniciar sesión.');
+    const res=await fetch('/api/delete-professional',{method:'DELETE',headers:{'Content-Type':'application/json','Authorization':`Bearer ${session.access_token}`},body:JSON.stringify({professional_id:id})});
+    const out=await res.json();
+    if(!res.ok)return alert(out.error||'No se pudo eliminar el profesional.');
+  }else{
+    const {error}=await db.from('profesionales').delete().eq('id',id);
+    if(error)return alert(error.message);
+    if(p.usuario_id===state.user.id)state.professional=null;
+  }
+  notify('Profesional eliminado.');renderProfessionals();
 }
 function openAdminProfessionalForm(){
   showModal(`<div class="modal-head"><div><h3>También atiendo pacientes</h3><div class="help">Vincula tu cuenta de administrador a un perfil profesional. Seguirás conservando todos los permisos de administración.</div></div><button class="icon-btn" id="x">✕</button></div><div class="field"><label>Nombre profesional</label><input id="selfProName" value="${esc(state.profile?.nombre||'')}"></div><div class="field"><label>WhatsApp</label><input id="selfProWa" inputmode="tel" placeholder="6561234567"></div><button id="saveSelfPro" class="btn btn-primary btn-block">Activar mi perfil profesional</button>`);
@@ -449,7 +506,14 @@ function openProfessionalForm(p=null){showModal(`<div class="modal-head"><div><h
     const email=$('#proEmail').value.trim(),password=$('#proPass').value;if(!email||password.length<8)return alert('Escribe correo y una contraseña de al menos 8 caracteres.');const session=(await db.auth.getSession()).data.session;const res=await fetch('/api/create-user',{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${session?.access_token||''}`},body:JSON.stringify({nombre,whatsapp,email,password,rol:'profesional'})});const out=await res.json();if(!res.ok)return alert(out.error||'No se pudo crear el usuario.');closeModal();notify('Profesional y acceso creados.');renderProfessionals();};}
 
 async function renderAssociations(){
-  await loadAssociations();page.innerHTML=`<div class="section-head"><div><h2>Asociaciones</h2><p>Configura el Google Forms de consentimiento y los formularios adicionales de cada asociación.</p></div><button id="newAssoc" class="btn btn-primary">+ Nueva asociación</button></div><div class="list">${state.associations.length?state.associations.map(a=>`<article class="item"><div class="item-top"><div><h3>${esc(a.nombre)}</h3><div class="meta">Consentimiento: ${a.consentimiento_url?'Sí':'No'} · Formularios/Docs: ${a.formularios.length}</div></div><span class="badge ok">Activa</span></div><div class="actions"><button class="btn btn-soft" data-edit-assoc="${a.id}">Editar</button><button class="btn btn-light" data-forms="${a.id}">Formularios</button></div></article>`).join(''):'<div class="empty">Todavía no hay asociaciones.</div>'}</div>`;$('#newAssoc').onclick=()=>openAssociationForm();$$('[data-edit-assoc]').forEach(b=>b.onclick=()=>openAssociationForm(state.associations.find(x=>x.id===b.dataset.editAssoc)));$$('[data-forms]').forEach(b=>b.onclick=()=>openForms(state.associations.find(x=>x.id===b.dataset.forms)));
+  await loadAssociations();page.innerHTML=`<div class="section-head"><div><h2>Asociaciones</h2><p>Configura el Google Forms de consentimiento y los formularios adicionales de cada asociación.</p></div><button id="newAssoc" class="btn btn-primary">+ Nueva asociación</button></div><div class="list">${state.associations.length?state.associations.map(a=>`<article class="item"><div class="item-top"><div><h3>${esc(a.nombre)}</h3><div class="meta">Consentimiento: ${a.consentimiento_url?'Sí':'No'} · Formularios/Docs: ${a.formularios.length}</div></div><span class="badge ok">Activa</span></div><div class="actions"><button class="btn btn-soft" data-edit-assoc="${a.id}">Editar</button><button class="btn btn-light" data-forms="${a.id}">Formularios</button><button class="btn btn-danger" data-del-assoc="${a.id}">Eliminar</button></div></article>`).join(''):'<div class="empty">Todavía no hay asociaciones.</div>'}</div>`;$('#newAssoc').onclick=()=>openAssociationForm();$$('[data-edit-assoc]').forEach(b=>b.onclick=()=>openAssociationForm(state.associations.find(x=>x.id===b.dataset.editAssoc)));$$('[data-forms]').forEach(b=>b.onclick=()=>openForms(state.associations.find(x=>x.id===b.dataset.forms)));$$('[data-del-assoc]').forEach(b=>b.onclick=()=>deleteAssociation(b.dataset.delAssoc));
+}
+async function deleteAssociation(id){
+  const a=state.associations.find(x=>x.id===id);if(!a)return;
+  if(!confirm(`¿Eliminar la asociación “${a.nombre}”? También se eliminarán sus formularios y documentos registrados en la agenda.`))return;
+  const {error}=await db.from('asociaciones').delete().eq('id',id);
+  if(error)return alert(error.message);
+  notify('Asociación eliminada.');renderAssociations();
 }
 function openAssociationForm(a=null){showModal(`<div class="modal-head"><h3>${a?'Editar':'Nueva'} asociación</h3><button class="icon-btn" id="x">✕</button></div><div class="field"><label>Nombre</label><input id="assocName" value="${esc(a?.nombre||'')}"></div><div class="field"><label>Google Forms del consentimiento informado</label><input id="assocConsent" type="url" placeholder="https://forms.gle/..." value="${esc(a?.consentimiento_url||'')}"><div class="help">El paciente primero verá una pantalla de lectura y, al aceptar, será enviado a este formulario.</div></div><button id="saveAssoc" class="btn btn-primary btn-block">Guardar</button>`);$('#x').onclick=closeModal;$('#saveAssoc').onclick=async()=>{const nombre=$('#assocName').value.trim(),consentimiento_url=$('#assocConsent').value.trim()||null;if(!nombre)return alert('Escribe el nombre.');const result=a?await db.from('asociaciones').update({nombre,consentimiento_url}).eq('id',a.id):await db.from('asociaciones').insert({nombre,consentimiento_url});if(result.error)return alert(result.error.message);closeModal();renderAssociations();};}
 function openForms(a){
@@ -470,7 +534,7 @@ function openForms(a){
       $('#formUrl').value=url;
       if(!$('#formName').value.trim())$('#formName').value=file.name.replace(/\.[^.]+$/,'');
       setUploadStatus('#formUploadState','✓ Archivo subido. Ahora presiona “Agregar”.','ok');
-    }catch(e){console.error(e);setUploadStatus('#formUploadState',e.message||'No se pudo subir el archivo.','error');alert(`${e.message||'No se pudo subir el archivo.'}\n\nSi es la primera vez, ejecuta supabase/03_storage_documentos.sql en Supabase.`);}
+    }catch(e){console.error(e);setUploadStatus('#formUploadState',e.message||'No se pudo subir el archivo.','error');alert(`${e.message||'No se pudo subir el archivo.'}\n\nSi es la primera vez, ejecuta 03_storage_documentos.sql en Supabase.`);}
     finally{btn.disabled=false;btn.textContent='Subir archivo';}
   };
   $('#addForm').onclick=async()=>{

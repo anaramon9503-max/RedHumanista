@@ -148,3 +148,8 @@ Cambios de esta versión:
 - Las **Notas internas** solo pueden leerlas administración y el profesional asignado.
 - Cada nota guarda autor, fecha y hora.
 - El profesional solo puede editar/eliminar sus propias notas; administración puede administrar todas.
+
+
+## Actualización: editar y eliminar
+
+El panel de administración permite editar y eliminar Solicitudes, Servicios, Profesionales y Asociaciones. Los Horarios ya incluyen Editar y Eliminar. Para eliminar un profesional con acceso, Vercel usa `/api/delete-professional` y requiere las mismas variables `SUPABASE_URL`, `SUPABASE_ANON_KEY` y `SUPABASE_SERVICE_ROLE_KEY` que `create-user.js`. Un profesional con citas registradas no se puede eliminar hasta reasignar o borrar esas citas.

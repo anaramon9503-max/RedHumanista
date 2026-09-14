@@ -1,4 +1,70 @@
 {
-  "cleanUrls": true,
-  "trailingSlash": false
+  "version": 2,
+  "builds": [
+    {
+      "src": "create-user.js",
+      "use": "@vercel/node"
+    },
+    {
+      "src": "delete-professional.js",
+      "use": "@vercel/node"
+    },
+    {
+      "src": "index.html",
+      "use": "@vercel/static"
+    },
+    {
+      "src": "panel.html",
+      "use": "@vercel/static"
+    },
+    {
+      "src": "consentimiento.html",
+      "use": "@vercel/static"
+    },
+    {
+      "src": "public.js",
+      "use": "@vercel/static"
+    },
+    {
+      "src": "panel.js",
+      "use": "@vercel/static"
+    },
+    {
+      "src": "config.js",
+      "use": "@vercel/static"
+    },
+    {
+      "src": "styles.css",
+      "use": "@vercel/static"
+    },
+    {
+      "src": "logo-humanista.png",
+      "use": "@vercel/static"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/api/create-user",
+      "dest": "/create-user.js"
+    },
+    {
+      "src": "/api/delete-professional",
+      "dest": "/delete-professional.js"
+    },
+    {
+      "src": "/",
+      "dest": "/index.html"
+    },
+    {
+      "src": "/panel",
+      "dest": "/panel.html"
+    },
+    {
+      "src": "/consentimiento",
+      "dest": "/consentimiento.html"
+    },
+    {
+      "handle": "filesystem"
+    }
+  ]
 }
