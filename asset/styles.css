@@ -300,3 +300,463 @@ textarea{min-height:100px;resize:vertical}
   .stats{grid-template-columns:1fr}
   .actions .btn{flex-basis:100%}
 }
+
+/* =====================================================
+   NAVEGACIÓN TIPO APP + BOTONES COMPACTOS
+===================================================== */
+.nav-btn{display:flex;align-items:center;gap:10px}
+.nav-icon{width:22px;flex:0 0 22px;text-align:center;font-size:16px;line-height:1}
+.nav-label{min-width:0}
+.nav-more{display:none}
+.more-menu{position:fixed;z-index:120;right:12px;bottom:84px;width:min(240px,calc(100% - 24px));padding:8px;background:#fff;border:1px solid var(--border);border-radius:18px;box-shadow:0 18px 50px rgba(18,45,50,.20)}
+.more-menu button{width:100%;border:0;background:transparent;padding:13px 14px;border-radius:12px;text-align:left;color:#506268;font-weight:800}
+.more-menu button:hover{background:#f2f8f7;color:var(--teal-dark)}
+.more-menu button span{display:inline-block;width:28px;text-align:center;color:var(--teal)}
+.btn-compact{min-height:36px;padding:7px 12px;border-radius:11px;font-size:12px}
+.actions .btn{flex:0 0 auto;min-height:34px;padding:7px 10px;border-radius:10px;font-size:12px}
+
+/* =====================================================
+   CONSENTIMIENTO INFORMADO - PANTALLA PREVIA A GOOGLE FORMS
+===================================================== */
+.consent-page{margin:0;min-height:100vh;background:radial-gradient(circle at 0 0,rgba(7,138,162,.14),transparent 30%),radial-gradient(circle at 100% 0,rgba(240,122,50,.13),transparent 28%),radial-gradient(circle at 100% 100%,rgba(116,50,160,.10),transparent 32%),#fbfdfc;color:var(--text)}
+.consent-shell{width:min(680px,calc(100% - 24px));margin:0 auto;padding:24px 0 42px}
+.consent-brand{display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:14px}
+.consent-brand img{width:74px;height:74px;object-fit:contain}
+.consent-brand small,.consent-brand strong{display:block}
+.consent-brand small{color:var(--teal-dark);font-weight:850;font-size:14px}
+.consent-brand strong{color:var(--orange);font-size:15px}
+.consent-card{position:relative;overflow:hidden;background:#fff;border:1px solid var(--border);border-radius:28px;padding:26px;box-shadow:0 18px 52px rgba(29,76,83,.10)}
+.consent-accent{position:absolute;inset:0 0 auto;height:6px;background:var(--brand-gradient)}
+.consent-heading{display:flex;align-items:center;gap:13px;margin-top:4px}
+.consent-icon{width:48px;height:48px;border-radius:16px;display:grid;place-items:center;background:var(--purple-soft);color:var(--purple);font-size:24px;font-weight:900;flex:0 0 auto}
+.consent-kicker{font-size:11px;font-weight:900;text-transform:uppercase;letter-spacing:.12em;color:var(--teal)}
+.consent-heading h1{margin:3px 0 0;color:var(--teal-dark);font-size:clamp(26px,6vw,34px);letter-spacing:-.6px}
+.consent-intro{margin:18px 0;color:var(--muted);line-height:1.6}
+.consent-summary{padding:17px 18px;border:1px solid #e1ecea;border-radius:18px;background:linear-gradient(145deg,#f8fcfb,#fffaf6)}
+.consent-summary h2{margin:0 0 8px;color:#355158;font-size:17px}
+.consent-summary p{margin:8px 0;color:#64767c;font-size:13.5px;line-height:1.6}
+.consent-points{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin:14px 0}
+.consent-points>div{padding:13px;border-radius:16px;background:#fbfdfc;border:1px solid #e5efed}
+.consent-points span{width:28px;height:28px;display:grid;place-items:center;border-radius:50%;background:var(--green-soft);color:var(--green);font-weight:900;margin-bottom:7px}
+.consent-points p{margin:0;color:#6c7b80;font-size:11.5px;line-height:1.45}
+.consent-points strong{color:#41565c}
+.consent-check{display:flex;align-items:flex-start;gap:10px;margin:18px 0 12px;padding:14px;border-radius:16px;background:#f4faf9;color:#4f646b;font-size:13px;line-height:1.5;border:1px solid #deecea;cursor:pointer}
+.consent-check input{width:20px;height:20px;min-height:0;margin:1px 0 0;accent-color:var(--teal);flex:0 0 auto}
+.consent-continue{width:100%;min-height:52px;border:0;border-radius:17px;padding:13px 18px;display:flex;align-items:center;justify-content:center;gap:12px;color:#fff;font-weight:900;background:var(--brand-gradient);box-shadow:0 10px 24px rgba(7,138,162,.18)}
+.consent-continue:disabled{opacity:.45;cursor:not-allowed;box-shadow:none}
+.consent-continue b{font-size:22px}
+.consent-note{margin:12px 3px 0;color:#859398;font-size:11px;line-height:1.5;text-align:center}
+.consent-footer{display:flex;justify-content:center;gap:8px;margin-top:16px;color:#8a999e;font-size:10px;letter-spacing:.09em;font-weight:800}
+.consent-footer b{color:var(--orange)}
+
+@media(max-width:640px){
+  .panel-shell{padding-bottom:98px}
+  .dashboard-grid{display:block}
+  .sidebar{position:fixed;left:8px;right:8px;bottom:8px;top:auto;z-index:90;display:grid;grid-template-columns:repeat(5,1fr);gap:3px;padding:6px;border-radius:20px;background:rgba(255,255,255,.96);box-shadow:0 12px 40px rgba(20,60,68,.18);backdrop-filter:blur(18px);overflow:visible}
+  .sidebar::before{display:none}
+  .nav-btn{width:100%;min-width:0;min-height:52px;margin:0;padding:7px 3px;display:flex;flex-direction:column;justify-content:center;gap:4px;border-radius:14px;text-align:center;font-size:10px;font-weight:800;white-space:normal}
+  .nav-icon{width:auto;flex:0 0 auto;font-size:17px}
+  .nav-label{display:block;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .nav-btn.active{box-shadow:none;background:#e9f8f7;color:var(--teal-dark)}
+  .nav-extra{display:none}
+  .nav-more{display:flex}
+  .actions{gap:6px}
+  .actions .btn{flex:0 0 auto;min-height:32px;padding:6px 9px;font-size:11.5px}
+  .section-head>.btn{min-height:38px;padding:8px 12px;font-size:12px}
+  .more-menu{bottom:75px}
+  .consent-shell{width:calc(100% - 18px);padding-top:14px}
+  .consent-brand{justify-content:flex-start;padding-left:5px}
+  .consent-brand img{width:62px;height:62px}
+  .consent-card{padding:21px 17px;border-radius:24px}
+  .consent-heading{align-items:flex-start}
+  .consent-icon{width:42px;height:42px;border-radius:14px}
+  .consent-points{grid-template-columns:1fr}
+  .consent-points>div{display:grid;grid-template-columns:28px 1fr;gap:9px;align-items:start}
+  .consent-points span{margin:0}
+}
+
+/* =====================================================
+   CARGA DE DOCUMENTOS - ASOCIACIONES / FORMULARIOS
+===================================================== */
+.upload-box{margin-top:10px;padding:12px;border:1px dashed #cfe0dd;border-radius:14px;background:linear-gradient(145deg,#fbfefd,#f6fbfa)}
+.upload-title{margin-bottom:3px;color:var(--teal-dark);font-size:12px;font-weight:850}
+.file-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:center;margin-top:9px}
+.file-row input[type="file"]{min-width:0;min-height:38px;padding:6px 8px;font-size:11px}
+.upload-status{min-height:18px;margin-top:7px;font-size:11px;font-weight:700;color:var(--muted)}
+.upload-status.ok{color:var(--success)}
+.upload-status.error{color:var(--danger)}
+.upload-status.loading{color:var(--teal-dark)}
+.field-link{margin-top:6px;font-size:11px}
+.field-link a{font-weight:750;color:var(--teal-dark)}
+.url-line{margin-top:4px;overflow-wrap:anywhere;word-break:break-word}
+.actions a.btn{display:inline-flex;align-items:center;justify-content:center;text-decoration:none}
+@media(max-width:640px){.file-row{grid-template-columns:1fr}.file-row .btn{width:fit-content}}
+
+/* =====================================================
+   V3 · SOLICITUDES Y PACIENTES SEPARADOS
+   Administración: Solicitudes solo asignar + WhatsApp.
+   Seguimiento clínico: Pacientes.
+===================================================== */
+
+/* Botones más pequeños y tranquilos en todo el panel */
+.panel-page .btn{
+  min-height:38px;
+  padding:8px 12px;
+  border-radius:12px;
+  font-size:12.5px;
+  line-height:1.15;
+}
+.panel-page .btn-block{width:100%}
+.panel-page .section-head>.btn,
+.panel-page .head-actions>.btn{min-height:38px;padding:8px 12px}
+.panel-page .actions{gap:7px;margin-top:12px}
+.panel-page .actions .btn{flex:0 0 auto;min-height:34px;padding:7px 10px;font-size:11.5px;border-radius:10px}
+
+/* Solicitudes: exactamente dos acciones principales */
+.request-stats{grid-template-columns:repeat(3,minmax(0,1fr))}
+.request-card{padding:18px 18px 16px}
+.request-actions{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:8px;
+  margin-top:14px;
+}
+.request-actions .btn{
+  width:100%;
+  min-height:40px;
+  padding:8px 10px;
+  font-size:12px;
+  border-radius:12px;
+  box-shadow:none;
+}
+
+/* Pacientes: seguimiento en una pantalla aparte */
+.patient-toolbar{display:grid;grid-template-columns:minmax(180px,260px) minmax(220px,1fr)}
+.patient-card{padding:18px}
+.patient-progress{margin-top:11px}
+.patient-progress .progress-step{padding:6px 9px;font-size:10.5px}
+.patient-actions{
+  display:flex;
+  flex-wrap:wrap;
+  gap:7px;
+  margin-top:13px;
+}
+.patient-actions .btn{
+  flex:0 0 auto;
+  min-height:35px;
+  padding:7px 10px;
+  font-size:11.5px;
+  border-radius:10px;
+  box-shadow:none;
+}
+.patient-actions .btn-primary{background:#e6f5f5;color:var(--teal-dark);border:1px solid #cae8e7}
+
+.patient-summary{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  padding:12px 14px;
+  border-radius:14px;
+  background:#f5faf9;
+  border:1px solid #e1ecea;
+}
+.patient-summary strong{color:var(--teal-dark)}
+.patient-summary span{font-size:11px;color:var(--muted);text-align:right}
+.follow-block{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:14px;align-items:center}
+.follow-block>div:first-child{min-width:0}
+.follow-number{display:inline-grid;place-items:center;width:27px;height:27px;margin-right:7px;border-radius:9px;background:#eaf7f6;color:var(--teal-dark);font-size:12px;font-weight:900}
+.follow-block strong{font-size:14px;color:#354b52}
+.follow-block small{display:block;margin:7px 0 0;color:var(--muted);font-size:11.5px}
+.follow-actions{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:6px}
+.follow-actions .btn{min-height:33px;padding:6px 9px;font-size:11px}
+.form-mini-list{display:grid;gap:3px;margin-top:8px;color:var(--muted);font-size:11.5px;line-height:1.45}
+
+/* El administrador puede ser también profesional */
+.head-actions{display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end}
+.self-pro-note{
+  display:flex;
+  align-items:flex-start;
+  gap:10px;
+  margin-bottom:14px;
+  padding:12px 14px;
+  border:1px solid #cfe9de;
+  border-radius:15px;
+  background:#f0faf5;
+}
+.self-pro-note>span{width:27px;height:27px;display:grid;place-items:center;border-radius:9px;background:#dff4e8;color:#238153;font-weight:900;flex:0 0 auto}
+.self-pro-note strong,.self-pro-note small{display:block}
+.self-pro-note strong{color:#35624d;font-size:12.5px}
+.self-pro-note small{margin-top:3px;color:#6f8179;font-size:11px;line-height:1.4}
+.mini-you{display:inline-block;margin-left:5px;padding:3px 6px;border-radius:999px;background:#eaf7f6;color:var(--teal-dark);font-size:9px;vertical-align:middle}
+
+@media(max-width:640px){
+  .panel-page .btn{min-height:36px;padding:7px 10px;font-size:12px}
+  .request-stats{grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+  .request-stats .stat{padding:12px 10px;min-width:0}
+  .request-stats .stat strong{font-size:22px}
+  .request-stats .stat span{font-size:10px}
+  .request-actions{gap:7px}
+  .request-actions .btn{min-height:38px;font-size:11.5px}
+  .patient-toolbar{grid-template-columns:1fr}
+  .patient-card{padding:16px}
+  .patient-card .item-top{flex-direction:row;align-items:flex-start}
+  .patient-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}
+  .patient-actions .btn{width:100%;min-height:35px;padding:7px 6px;font-size:10.8px}
+  .follow-block{grid-template-columns:1fr}
+  .follow-actions{justify-content:flex-start}
+  .head-actions{width:100%;justify-content:flex-start}
+  .head-actions .btn{flex:0 0 auto}
+
+  /* La barra inferior queda realmente tipo app y sin botones gigantes */
+  .sidebar{grid-template-columns:repeat(5,minmax(0,1fr))}
+  .nav-btn{min-height:50px;padding:6px 2px;font-size:9.5px;border-radius:13px}
+  .nav-icon{font-size:16px}
+}
+
+@media(max-width:390px){
+  .request-actions{grid-template-columns:1fr 1fr}
+  .request-actions .btn{font-size:10.8px;padding:7px 5px}
+  .patient-actions{grid-template-columns:1fr 1fr}
+}
+
+
+/* =====================================================
+   NAVEGACIÓN INFERIOR MÓVIL — CORRECCIÓN DEFINITIVA
+   Mantener al FINAL del archivo para que gane a estilos previos.
+===================================================== */
+html{
+  -webkit-text-size-adjust:100%;
+  text-size-adjust:100%;
+}
+
+.nav-icon svg{
+  width:100%;
+  height:100%;
+  display:block;
+  fill:none;
+  stroke:currentColor;
+  stroke-width:1.9;
+  stroke-linecap:round;
+  stroke-linejoin:round;
+}
+
+@media (max-width:900px){
+  .panel-shell{
+    padding-bottom:92px !important;
+  }
+
+  .dashboard-grid{
+    display:block !important;
+  }
+
+  #sidebar.sidebar{
+    position:fixed !important;
+    z-index:1000 !important;
+    left:50% !important;
+    right:auto !important;
+    bottom:calc(8px + env(safe-area-inset-bottom, 0px)) !important;
+    top:auto !important;
+    transform:translateX(-50%) !important;
+
+    width:min(520px, calc(100vw - 16px)) !important;
+    height:66px !important;
+    min-height:66px !important;
+    max-height:66px !important;
+
+    display:grid !important;
+    grid-template-columns:repeat(5,minmax(0,1fr)) !important;
+    align-items:stretch !important;
+    gap:4px !important;
+
+    margin:0 !important;
+    padding:5px !important;
+    overflow:hidden !important;
+
+    border:1px solid rgba(213,229,227,.98) !important;
+    border-radius:20px !important;
+    background:rgba(255,255,255,.98) !important;
+    box-shadow:0 10px 30px rgba(29,76,83,.15) !important;
+    backdrop-filter:blur(16px) !important;
+  }
+
+  #sidebar.sidebar::before{
+    display:none !important;
+  }
+
+  #sidebar.sidebar .nav-btn{
+    -webkit-appearance:none !important;
+    appearance:none !important;
+
+    width:100% !important;
+    min-width:0 !important;
+    max-width:none !important;
+    height:56px !important;
+    min-height:56px !important;
+    max-height:56px !important;
+
+    display:flex !important;
+    flex-direction:column !important;
+    align-items:center !important;
+    justify-content:center !important;
+    gap:3px !important;
+
+    margin:0 !important;
+    padding:5px 2px !important;
+
+    border:0 !important;
+    border-radius:15px !important;
+    background:transparent !important;
+    box-shadow:none !important;
+
+    color:#6e7c81 !important;
+    text-align:center !important;
+    font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif !important;
+    font-size:10px !important;
+    font-weight:700 !important;
+    line-height:1 !important;
+    letter-spacing:0 !important;
+    white-space:normal !important;
+    overflow:hidden !important;
+    transform:none !important;
+  }
+
+  #sidebar.sidebar .nav-btn:hover,
+  #sidebar.sidebar .nav-btn:focus,
+  #sidebar.sidebar .nav-btn:active{
+    transform:none !important;
+    box-shadow:none !important;
+  }
+
+  #sidebar.sidebar .nav-icon{
+    width:20px !important;
+    height:20px !important;
+    min-width:20px !important;
+    min-height:20px !important;
+    max-width:20px !important;
+    max-height:20px !important;
+    flex:0 0 20px !important;
+    display:block !important;
+    margin:0 !important;
+    padding:0 !important;
+    color:inherit !important;
+    font-size:0 !important;
+    line-height:0 !important;
+  }
+
+  #sidebar.sidebar .nav-label{
+    display:block !important;
+    width:100% !important;
+    max-width:100% !important;
+    margin:0 !important;
+    padding:0 !important;
+    overflow:hidden !important;
+    text-overflow:ellipsis !important;
+    white-space:nowrap !important;
+    color:inherit !important;
+    font-size:9.5px !important;
+    font-weight:700 !important;
+    line-height:12px !important;
+  }
+
+  #sidebar.sidebar .nav-btn.active{
+    background:#e8f6f5 !important;
+    color:#087b8e !important;
+    box-shadow:none !important;
+  }
+
+  #sidebar.sidebar .nav-extra{
+    display:none !important;
+  }
+
+  #sidebar.sidebar .nav-more{
+    display:flex !important;
+  }
+
+  #moreMenu.more-menu{
+    bottom:calc(82px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+}
+
+@media (max-width:380px){
+  #sidebar.sidebar{
+    width:calc(100vw - 10px) !important;
+    gap:2px !important;
+    padding:4px !important;
+  }
+
+  #sidebar.sidebar .nav-btn{
+    padding:5px 1px !important;
+  }
+
+  #sidebar.sidebar .nav-label{
+    font-size:9px !important;
+  }
+}
+
+
+/* =====================================================
+   FICHA DE PACIENTE + NOTAS INTERNAS
+===================================================== */
+.patient-detail-meta{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  margin:10px 0 4px;
+  color:var(--muted);
+  font-size:11.5px;
+}
+.patient-summary small{display:block;margin-top:3px;color:var(--muted);font-size:10.5px;font-weight:600}
+.patient-progress-detail{margin:14px 0}
+.detail-action-grid{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:8px;
+  margin-top:12px;
+}
+.detail-action-grid .btn{width:100%;min-height:39px;box-shadow:none}
+.btn-note{background:#f3ecf8;color:#71408f;border:1px solid #e5d7ef}
+.internal-note-hint{
+  margin-top:10px;
+  padding:9px 11px;
+  border-radius:11px;
+  background:#faf8fb;
+  color:#7c7083;
+  font-size:10.5px;
+  line-height:1.45;
+}
+.note-editor textarea{min-height:100px;resize:vertical}
+.note-editor-foot{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  margin-top:8px;
+}
+.note-editor-foot small{color:var(--muted);font-size:10.5px}
+.note-list{display:grid;gap:10px}
+.note-card{
+  padding:13px 14px;
+  border:1px solid #e3ecea;
+  border-radius:15px;
+  background:#fbfdfc;
+}
+.note-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
+.note-head strong{display:block;color:#36515a;font-size:12.5px}
+.note-head small{display:block;margin-top:2px;color:var(--muted);font-size:9.5px}
+.note-actions{display:flex;gap:8px;flex:0 0 auto}
+.note-link{border:0;background:transparent;padding:2px 0;color:var(--teal-dark);font-size:10px;font-weight:800;box-shadow:none;min-height:0}
+.note-link.danger{color:#b65364}
+.note-body{margin-top:9px;color:#4f5f65;font-size:12px;line-height:1.55;white-space:normal;overflow-wrap:anywhere}
+.compact-empty{padding:18px}
+
+@media(max-width:640px){
+  .patient-actions{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .patient-actions .btn{min-height:36px;font-size:11px}
+  .detail-action-grid{grid-template-columns:1fr 1fr}
+  .detail-action-grid .btn{min-height:38px;padding:7px 6px;font-size:10.8px}
+  .note-editor-foot{align-items:flex-end}
+  .note-editor-foot .btn{flex:0 0 auto}
+  .patient-detail-meta{align-items:flex-start}
+}
