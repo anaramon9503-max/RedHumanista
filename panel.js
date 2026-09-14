@@ -143,8 +143,9 @@ async function renderRequests(){
     state.requests=data||[];
     const pending=state.requests.filter(r=>r.estado==='pendiente').length;
     const assigned=state.requests.filter(r=>r.profesional_id).length;
+    const withAppointment=state.requests.filter(r=>r.estado==='cita_agendada').length;
     page.innerHTML=`<div class="section-head"><div><h2>Solicitudes</h2><p>Aquí administración recibe la solicitud, asigna al profesional y puede contactar al paciente.</p></div></div>
-      <div class="stats request-stats"><div class="stat"><strong>${state.requests.length}</strong><span>Total</span></div><div class="stat"><strong>${pending}</strong><span>Sin asignar</span></div><div class="stat"><strong>${assigned}</strong><span>Asignadas</span></div></div>
+      <div class="stats request-stats"><div class="stat stat-total"><span class="stat-emoji">📨</span><strong>${state.requests.length}</strong><span>Total</span></div><div class="stat stat-pending"><span class="stat-emoji">⏳</span><strong>${pending}</strong><span>Sin asignar</span></div><div class="stat stat-assigned"><span class="stat-emoji">👩‍⚕️</span><strong>${assigned}</strong><span>Asignadas</span></div><div class="stat stat-appt"><span class="stat-emoji">📅</span><strong>${withAppointment}</strong><span>Con cita</span></div></div>
       <div class="toolbar"><select id="reqFilter"><option value="all">Todas</option><option value="pendiente">Sin asignar</option><option value="assigned">Asignadas</option></select><input id="reqSearch" placeholder="Buscar paciente o teléfono"></div>
       <div class="list" id="requestList"></div>`;
     $('#reqFilter').onchange=paintRequests;
