@@ -1,0 +1,25 @@
+RED HUMANISTA - VERSION DISEÑO + FUNCIONALIDAD
+
+Esta versión parte de la versión funcional con:
+- Solicitudes (admin)
+- Pacientes (admin / profesional asignado)
+- Citas para admin y profesionales
+- Servicios
+- Horarios
+- Asociaciones
+- Consentimiento / formularios
+- Notas internas con permisos
+
+CAMBIO VISUAL:
+- panel.html usa asset/panel-app.css
+- barra inferior móvil tipo app: Solicitudes / Pacientes / Citas / Profes. / Más
+- iconos estables tipo emoji
+- estadísticas 2 x 2
+- botones compactos
+- tarjetas redondeadas
+- turquesa principal con acentos del logo
+
+SUPABASE:
+Si ya ejecutaste 02_mejoras_panel.sql, 03_storage_documentos.sql y 04_notas_internas.sql, NO ejecutes nada nuevo.
+
+Sube/reemplaza todo el contenido del proyecto en GitHub/Vercel.
