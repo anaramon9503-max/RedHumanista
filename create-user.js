@@ -9,9 +9,15 @@ export default async function handler(req, res) {
   const anon = process.env.SUPABASE_ANON_KEY;
   const service = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-  if (!url || !anon || !service) {
+  const missingEnv = [
+    !url && 'SUPABASE_URL',
+    !anon && 'SUPABASE_ANON_KEY',
+    !service && 'SUPABASE_SERVICE_ROLE_KEY'
+  ].filter(Boolean);
+
+  if (missingEnv.length) {
     return res.status(500).json({
-      error: 'Faltan variables de entorno en Vercel.'
+      error: `Falta(n) variable(s) de entorno en Vercel: ${missingEnv.join(', ')}`
     });
   }
 
