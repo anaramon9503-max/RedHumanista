@@ -20,6 +20,12 @@ function notify(text,type='success'){globalMessage.textContent=text;globalMessag
 function showModal(html){modalCard.innerHTML=html;modal.classList.remove('hidden');}
 function closeModal(){modal.classList.add('hidden');modalCard.innerHTML='';}
 modal.addEventListener('click',e=>{if(e.target===modal)closeModal();});
+modalCard.addEventListener('click',e=>{
+  const btn=e.target.closest?.('#saveAssign');
+  if(!btn)return;
+  e.preventDefault();
+  saveAssignmentFromModal(btn.dataset.requestId||'',btn);
+});
 
 // ============================================================
 // DOCUMENTOS DE ASOCIACIONES (SUPABASE STORAGE)
@@ -207,37 +213,44 @@ function openAssign(id){
     <div class="field"><label>Profesional</label><select id="assignPro"><option value="">Seleccionar...</option>${state.professionals.map(p=>`<option value="${p.id}" ${r.profesional_id===p.id?'selected':''}>${esc(p.nombre)}</option>`).join('')}</select></div>
     <div class="field"><label>Asociación</label><select id="assignAssoc"><option value="">Sin asociación</option>${state.associations.map(a=>`<option value="${a.id}" ${r.asociacion_id===a.id?'selected':''}>${esc(a.nombre)}</option>`).join('')}</select><div class="help">La asociación define el consentimiento y formularios que aparecerán después en Pacientes.</div></div>
     <div id="assignMessage" class="message hidden"></div>
-    <button type="button" class="btn btn-primary btn-block" id="saveAssign">Guardar asignación</button>`);
+    <button type="button" class="btn btn-primary btn-block" id="saveAssign" data-request-id="${r.id}">Guardar asignación</button>`);
   $('#x').onclick=closeModal;
-  $('#saveAssign').onclick=async()=>{
-    const btn=$('#saveAssign');
-    const msg=$('#assignMessage');
-    const profesional_id=$('#assignPro')?.value||null;
-    const asociacion_id=$('#assignAssoc')?.value||null;
-    if(!profesional_id){msg.textContent='Selecciona un profesional.';msg.className='message error';return;}
-    btn.disabled=true;btn.textContent='Guardando…';
-    msg.textContent='Guardando asignación…';msg.className='message';
-    try{
-      const updatePromise=db.from('solicitudes_atencion')
-        .update({profesional_id,asociacion_id,estado:'asignada',fecha_asignacion:new Date().toISOString()})
-        .eq('id',id)
-        .select('id,profesional_id,asociacion_id,estado')
-        .maybeSingle();
-      const timeoutPromise=new Promise((_,reject)=>setTimeout(()=>reject(new Error('La conexión tardó demasiado. Intenta nuevamente.')),15000));
-      const {data,error}=await Promise.race([updatePromise,timeoutPromise]);
-      if(error)throw error;
-      if(!data)throw new Error('La solicitud no se actualizó. Revisa los permisos de administración en Supabase.');
-      closeModal();
-      notify('Paciente asignado. Usa “WhatsApp profesional” para avisarle.');
-      await renderRequests();
-    }catch(e){
-      console.error('Error guardando asignación:',e);
-      msg.textContent='No se pudo guardar: '+(e?.message||'Error desconocido');
-      msg.className='message error';
-    }finally{
-      if(btn&&document.body.contains(btn)){btn.disabled=false;btn.textContent='Guardar asignación';}
-    }
-  };
+}
+
+async function saveAssignmentFromModal(id,btn){
+  const msg=$('#assignMessage');
+  const profesional_id=$('#assignPro')?.value||null;
+  const asociacion_id=$('#assignAssoc')?.value||null;
+  if(!msg||!btn)return;
+  if(!id){msg.textContent='No pude identificar la solicitud. Cierra esta ventana y vuelve a abrirla.';msg.className='message error';return;}
+  if(!profesional_id){msg.textContent='Selecciona un profesional.';msg.className='message error';return;}
+
+  btn.disabled=true;
+  btn.textContent='Guardando…';
+  msg.textContent='Guardando asignación…';
+  msg.className='message';
+
+  try{
+    const updatePromise=db.from('solicitudes_atencion')
+      .update({profesional_id,asociacion_id,estado:'asignada',fecha_asignacion:new Date().toISOString()})
+      .eq('id',id)
+      .select('id,profesional_id,asociacion_id,estado')
+      .maybeSingle();
+    const timeoutPromise=new Promise((_,reject)=>setTimeout(()=>reject(new Error('La conexión tardó demasiado. Intenta nuevamente.')),15000));
+    const {data,error}=await Promise.race([updatePromise,timeoutPromise]);
+    if(error)throw error;
+    if(!data)throw new Error('La solicitud no se actualizó. Revisa los permisos de administración en Supabase.');
+
+    closeModal();
+    notify('Paciente asignado. Ya puedes avisarle desde “WhatsApp profesional”.');
+    await renderRequests();
+  }catch(e){
+    console.error('Error guardando asignación:',e);
+    msg.textContent='No se pudo guardar: '+(e?.message||'Error desconocido');
+    msg.className='message error';
+    btn.disabled=false;
+    btn.textContent='Guardar asignación';
+  }
 }
 
 function waPatient(id){
