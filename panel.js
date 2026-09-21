@@ -465,13 +465,45 @@ async function renderAppointments(){
       <div class="stats"><div class="stat"><strong>${state.appointments.length}</strong><span>Total</span></div><div class="stat"><strong>${todayCount}</strong><span>Hoy</span></div><div class="stat"><strong>${upcoming}</strong><span>Próximas</span></div><div class="stat"><strong>${confirmed}</strong><span>Confirmadas</span></div></div>
       <div class="toolbar"><select id="apptStatus"><option value="all">Todos los estados</option><option value="programada">Programadas</option><option value="confirmada">Confirmadas</option><option value="atendida">Atendidas</option><option value="cancelada">Canceladas</option><option value="no_asistio">No asistió</option></select>${state.profile.rol==='admin'?`<select id="apptPro"><option value="all">Todos los profesionales</option>${state.professionals.map(p=>`<option value="${p.id}">${esc(p.nombre)}</option>`).join('')}</select>`:''}<input class="grow" id="apptSearch" placeholder="Buscar paciente o teléfono"></div>
       <div class="list" id="appointmentList"></div>`;
-    const paint=()=>{const st=$('#apptStatus')?.value||'all',pr=$('#apptPro')?.value||'all',qtxt=($('#apptSearch')?.value||'').toLowerCase().trim();const rows=state.appointments.filter(a=>(st==='all'||a.estado===st)&&(pr==='all'||a.profesional_id===pr)&&(!qtxt||a.paciente_nombre.toLowerCase().includes(qtxt)||String(a.paciente_telefono||'').includes(qtxt)));const box=$('#appointmentList');box.innerHTML=rows.length?rows.map(a=>`<article class="item"><div class="item-top"><div><h3>${esc(a.paciente_nombre)}</h3><div class="meta">📅 ${dateMX(a.fecha)} · ${time12(a.hora_inicio)} · ${a.duracion_min} min<br>${a.servicios?.nombre?`Servicio: <strong>${esc(a.servicios.nombre)}</strong><br>`:''}${state.profile.rol==='admin'?`Profesional: <strong>${esc(a.profesionales?.nombre||'—')}</strong><br>`:''}📱 ${esc(a.paciente_telefono)}</div></div>${statusBadge(a.estado)}</div><div class="actions"><button class="btn btn-soft" data-edit-appt="${a.id}">Editar</button><button class="btn btn-whatsapp" data-confirm-appt="${a.id}">WhatsApp</button><button class="btn btn-light" data-img-appt="${a.id}">Confirmación</button>${a.estado!=='atendida'?`<button class="btn btn-success" data-attended="${a.id}">Atendida</button>`:''}${a.estado!=='cancelada'?`<button class="btn btn-danger" data-cancel="${a.id}">Cancelar</button>`:''}</div></article>`).join(''):'<div class="empty">No hay citas con este filtro.</div>';
-      $$('[data-edit-appt]').forEach(b=>b.onclick=()=>{const a=state.appointments.find(x=>x.id===b.dataset.editAppt);state.profile.rol==='admin'?openAdminAppointmentForm(a):openAppointmentForm(a.solicitud_id,a);});$$('[data-confirm-appt]').forEach(b=>b.onclick=()=>confirmAppointment(b.dataset.confirmAppt));$$('[data-img-appt]').forEach(b=>b.onclick=()=>appointmentImage(b.dataset.imgAppt));$$('[data-attended]').forEach(b=>b.onclick=()=>updateAppointmentStatus(b.dataset.attended,'atendida'));$$('[data-cancel]').forEach(b=>b.onclick=()=>updateAppointmentStatus(b.dataset.cancel,'cancelada'));
+    const paint=()=>{const st=$('#apptStatus')?.value||'all',pr=$('#apptPro')?.value||'all',qtxt=($('#apptSearch')?.value||'').toLowerCase().trim();const rows=state.appointments.filter(a=>(st==='all'||a.estado===st)&&(pr==='all'||a.profesional_id===pr)&&(!qtxt||a.paciente_nombre.toLowerCase().includes(qtxt)||String(a.paciente_telefono||'').includes(qtxt)));const box=$('#appointmentList');box.innerHTML=rows.length?rows.map(a=>`<article class="item"><div class="item-top"><div><h3>${esc(a.paciente_nombre)}</h3><div class="meta">📅 ${dateMX(a.fecha)} · ${time12(a.hora_inicio)} · ${a.duracion_min} min<br>${a.servicios?.nombre?`Servicio: <strong>${esc(a.servicios.nombre)}</strong><br>`:''}${state.profile.rol==='admin'?`Profesional: <strong>${esc(a.profesionales?.nombre||'—')}</strong><br>`:''}📱 ${esc(a.paciente_telefono)}</div></div>${statusBadge(a.estado)}</div><div class="actions"><button class="btn btn-soft" data-edit-appt="${a.id}">Editar</button><button class="btn btn-whatsapp" data-confirm-appt="${a.id}">WhatsApp</button><button class="btn btn-light" data-img-appt="${a.id}">Confirmación</button>${a.estado!=='atendida'?`<button class="btn btn-success" data-attended="${a.id}">Atendida</button>`:''}${a.estado!=='cancelada'?`<button class="btn btn-danger" data-cancel="${a.id}">Cancelar</button>`:''}<button class="btn btn-danger" data-delete-appt="${a.id}">Eliminar</button></div></article>`).join(''):'<div class="empty">No hay citas con este filtro.</div>';
+      $$('[data-edit-appt]').forEach(b=>b.onclick=()=>{const a=state.appointments.find(x=>x.id===b.dataset.editAppt);state.profile.rol==='admin'?openAdminAppointmentForm(a):openAppointmentForm(a.solicitud_id,a);});$$('[data-confirm-appt]').forEach(b=>b.onclick=()=>confirmAppointment(b.dataset.confirmAppt));$$('[data-img-appt]').forEach(b=>b.onclick=()=>appointmentImage(b.dataset.imgAppt));$$('[data-attended]').forEach(b=>b.onclick=()=>updateAppointmentStatus(b.dataset.attended,'atendida'));$$('[data-cancel]').forEach(b=>b.onclick=()=>updateAppointmentStatus(b.dataset.cancel,'cancelada'));$$('[data-delete-appt]').forEach(b=>b.onclick=()=>deleteAppointment(b.dataset.deleteAppt));
     };
     $('#apptStatus').onchange=paint;if($('#apptPro'))$('#apptPro').onchange=paint;$('#apptSearch').oninput=paint;if($('#newAdminAppt'))$('#newAdminAppt').onclick=()=>openAdminAppointmentForm();if($('#newProAppt'))$('#newProAppt').onclick=openProfessionalAppointmentPicker;paint();
   }catch(e){console.error(e);page.innerHTML='<div class="message error">No se pudo cargar el panel de citas. Si acabas de actualizar el proyecto, ejecuta el archivo SQL de mejoras en Supabase.</div>';}
 }
 async function updateAppointmentStatus(id,estado){const {error}=await db.from('citas').update({estado}).eq('id',id);if(error)return notify(error.message,'error');notify('Cita actualizada.');renderAppointments();}
+
+async function deleteAppointment(id){
+  const a=state.appointments.find(x=>x.id===id);
+  if(!a)return;
+  if(!confirm(`¿Eliminar definitivamente la cita de ${a.paciente_nombre} del ${dateMX(a.fecha)} a las ${time12(a.hora_inicio)}? Esta acción no se puede deshacer.`))return;
+
+  const btn=document.querySelector(`[data-delete-appt="${id}"]`);
+  if(btn){btn.disabled=true;btn.textContent='Eliminando…';}
+
+  try{
+    const {error}=await db.from('citas').delete().eq('id',id);
+    if(error)throw error;
+
+    // Si la cita estaba ligada a una solicitud y ya no quedan más citas para ese paciente,
+    // regresa el seguimiento a "Asignada" para que pueda volver a agendarse.
+    if(a.solicitud_id){
+      const {count,error:countError}=await db.from('citas').select('id',{count:'exact',head:true}).eq('solicitud_id',a.solicitud_id);
+      if(countError)console.warn('No se pudo comprobar si quedan otras citas:',countError);
+      else if((count||0)===0){
+        const {error:reqError}=await db.from('solicitudes_atencion').update({estado:'asignada'}).eq('id',a.solicitud_id).eq('estado','cita_agendada');
+        if(reqError)console.warn('La cita se eliminó, pero no se pudo actualizar el estado de la solicitud:',reqError);
+      }
+    }
+
+    notify('Cita eliminada.');
+    await renderAppointments();
+  }catch(e){
+    console.error('Error eliminando cita:',e);
+    alert('No se pudo eliminar la cita: '+(e?.message||'Error desconocido'));
+    if(btn){btn.disabled=false;btn.textContent='Eliminar';}
+  }
+}
 function confirmAppointment(id){const a=state.appointments.find(x=>x.id===id);if(!a)return;const pro=a.profesionales?.nombre||state.professional?.nombre||'tu profesional';const text=`Hola ${a.paciente_nombre} 😊 Tu cita con Red de Atención Psicológica Humanista está programada.\n\n👤 Profesional: ${pro}\n📅 Fecha: ${dateMX(a.fecha)}\n🕐 Hora: ${time12(a.hora_inicio)}\n\nSi necesitas hacer un cambio, comunícate con nosotros.`;window.open(`https://wa.me/${waPhone(a.paciente_telefono)}?text=${encodeURIComponent(text)}`,'_blank');}
 function appointmentImage(id){const a=state.appointments.find(x=>x.id===id);if(!a)return;const pro=a.profesionales?.nombre||state.professional?.nombre||'Profesional';showModal(`<div class="modal-head"><h3>Confirmación de cita</h3><button class="icon-btn" id="x">✕</button></div><div class="confirmation-preview" id="confirmation"><div class="confirm-mark"><img src="./logo-humanista.png" alt="Red Humanista"></div><h3>Red de Atención Psicológica Humanista</h3><p>Confirmación de cita</p><div class="big-date">${dateMX(a.fecha)} · ${time12(a.hora_inicio)}</div><p><strong>${esc(a.paciente_nombre)}</strong></p><p>Profesional: ${esc(pro)}</p>${a.servicios?.nombre?`<p>Servicio: ${esc(a.servicios.nombre)}</p>`:''}</div><button class="btn btn-primary" id="downloadConfirm" style="margin-top:12px">Descargar imagen</button>`);$('#x').onclick=closeModal;$('#downloadConfirm').onclick=async()=>{const canvas=await html2canvas($('#confirmation'),{scale:2,backgroundColor:'#ffffff'});const link=document.createElement('a');link.download=`confirmacion-${a.paciente_nombre.replace(/\s+/g,'-').toLowerCase()}.png`;link.href=canvas.toDataURL('image/png');link.click();};}
 
