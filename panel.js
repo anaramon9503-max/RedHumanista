@@ -164,13 +164,14 @@ function paintRequests(){
   box.innerHTML=rows.map(r=>requestCard(r)).join('');
   $$('[data-assign]').forEach(b=>b.onclick=()=>openAssign(b.dataset.assign));
   $$('[data-wa-patient]').forEach(b=>b.onclick=()=>waPatient(b.dataset.waPatient));
+  $$('[data-wa-professional]').forEach(b=>b.onclick=()=>waProfessional(b.dataset.waProfessional));
   $$('[data-edit-request]').forEach(b=>b.onclick=()=>openRequestEdit(b.dataset.editRequest));
   $$('[data-del-request]').forEach(b=>b.onclick=()=>deleteRequest(b.dataset.delRequest));
 }
 function requestCard(r){
   const pro=r.profesionales?.nombre||'Sin asignar';
   return `<article class="item request-card"><div class="item-top"><div><h3>${esc(r.nombre)}</h3><div class="meta">📱 ${esc(r.telefono)}<br>Profesional: <strong>${esc(pro)}</strong><br>Recibida: ${new Date(r.created_at).toLocaleString('es-MX')}</div></div>${r.profesional_id?'<span class="badge ok">Asignada</span>':'<span class="badge pending">Pendiente</span>'}</div>
-    <div class="request-actions"><button class="btn btn-soft" data-assign="${r.id}">${r.profesional_id?'Cambiar profesional':'Asignar profesional'}</button><button class="btn btn-whatsapp" data-wa-patient="${r.id}">WhatsApp paciente</button><button class="btn btn-soft" data-edit-request="${r.id}">Editar</button><button class="btn btn-danger" data-del-request="${r.id}">Eliminar</button></div></article>`;
+    <div class="request-actions"><button type="button" class="btn btn-soft" data-assign="${r.id}">${r.profesional_id?'Cambiar profesional':'Asignar profesional'}</button>${r.profesional_id?`<button type="button" class="btn btn-whatsapp" data-wa-professional="${r.id}">WhatsApp profesional</button>`:''}<button type="button" class="btn btn-whatsapp" data-wa-patient="${r.id}">WhatsApp paciente</button><button type="button" class="btn btn-soft" data-edit-request="${r.id}">Editar</button><button type="button" class="btn btn-danger" data-del-request="${r.id}">Eliminar</button></div></article>`;
 }
 function openRequestEdit(id){
   const r=state.requests.find(x=>x.id===id);if(!r)return;
@@ -202,24 +203,63 @@ async function deleteRequest(id){
 }
 function openAssign(id){
   const r=state.requests.find(x=>x.id===id); if(!r)return;
-  showModal(`<div class="modal-head"><div><h3>${r.profesional_id?'Cambiar asignación':'Asignar profesional'}</h3><div class="help">${esc(r.nombre)} · ${esc(r.telefono)}</div></div><button class="icon-btn" id="x">✕</button></div>
+  showModal(`<div class="modal-head"><div><h3>${r.profesional_id?'Cambiar asignación':'Asignar profesional'}</h3><div class="help">${esc(r.nombre)} · ${esc(r.telefono)}</div></div><button type="button" class="icon-btn" id="x">✕</button></div>
     <div class="field"><label>Profesional</label><select id="assignPro"><option value="">Seleccionar...</option>${state.professionals.map(p=>`<option value="${p.id}" ${r.profesional_id===p.id?'selected':''}>${esc(p.nombre)}</option>`).join('')}</select></div>
     <div class="field"><label>Asociación</label><select id="assignAssoc"><option value="">Sin asociación</option>${state.associations.map(a=>`<option value="${a.id}" ${r.asociacion_id===a.id?'selected':''}>${esc(a.nombre)}</option>`).join('')}</select><div class="help">La asociación define el consentimiento y formularios que aparecerán después en Pacientes.</div></div>
-    <button class="btn btn-primary btn-block" id="saveAssign">Guardar asignación</button>`);
+    <div id="assignMessage" class="message hidden"></div>
+    <button type="button" class="btn btn-primary btn-block" id="saveAssign">Guardar asignación</button>`);
   $('#x').onclick=closeModal;
   $('#saveAssign').onclick=async()=>{
-    const professional_id=$('#assignPro').value||null, asociacion_id=$('#assignAssoc').value||null;
-    if(!professional_id)return alert('Selecciona un profesional.');
-    const {error}=await db.from('solicitudes_atencion').update({profesional_id,asociacion_id,estado:'asignada',fecha_asignacion:new Date().toISOString()}).eq('id',id);
-    if(error)return alert(error.message);
-    closeModal();notify('Paciente asignado. Ya aparece en Pacientes.');renderRequests();
+    const btn=$('#saveAssign');
+    const msg=$('#assignMessage');
+    const profesional_id=$('#assignPro')?.value||null;
+    const asociacion_id=$('#assignAssoc')?.value||null;
+    if(!profesional_id){msg.textContent='Selecciona un profesional.';msg.className='message error';return;}
+    btn.disabled=true;btn.textContent='Guardando…';
+    msg.textContent='Guardando asignación…';msg.className='message';
+    try{
+      const updatePromise=db.from('solicitudes_atencion')
+        .update({profesional_id,asociacion_id,estado:'asignada',fecha_asignacion:new Date().toISOString()})
+        .eq('id',id)
+        .select('id,profesional_id,asociacion_id,estado')
+        .maybeSingle();
+      const timeoutPromise=new Promise((_,reject)=>setTimeout(()=>reject(new Error('La conexión tardó demasiado. Intenta nuevamente.')),15000));
+      const {data,error}=await Promise.race([updatePromise,timeoutPromise]);
+      if(error)throw error;
+      if(!data)throw new Error('La solicitud no se actualizó. Revisa los permisos de administración en Supabase.');
+      closeModal();
+      notify('Paciente asignado. Usa “WhatsApp profesional” para avisarle.');
+      await renderRequests();
+    }catch(e){
+      console.error('Error guardando asignación:',e);
+      msg.textContent='No se pudo guardar: '+(e?.message||'Error desconocido');
+      msg.className='message error';
+    }finally{
+      if(btn&&document.body.contains(btn)){btn.disabled=false;btn.textContent='Guardar asignación';}
+    }
   };
 }
+
 function waPatient(id){
   const r=state.requests.find(x=>x.id===id);if(!r)return;
   const p=state.professionals.find(x=>x.id===r.profesional_id);
   const text=p?`Hola ${r.nombre} 😊 Somos de Red de Atención Psicológica Humanista. Tu solicitud fue asignada a ${p.nombre}. Nos pondremos en contacto contigo para continuar tu proceso.`:`Hola ${r.nombre} 😊 Recibimos tu solicitud en Red de Atención Psicológica Humanista. En breve te asignaremos a un profesional.`;
   window.open(`https://wa.me/${waPhone(r.telefono)}?text=${encodeURIComponent(text)}`,'_blank');
+}
+
+function waProfessional(id){
+  const r=state.requests.find(x=>x.id===id);if(!r)return;
+  const p=state.professionals.find(x=>x.id===r.profesional_id)||r.profesionales;
+  if(!p?.whatsapp)return alert('El profesional asignado no tiene un WhatsApp registrado.');
+  const assoc=state.associations.find(x=>x.id===r.asociacion_id)?.nombre||'Sin asociación asignada';
+  const text=`Hola ${p.nombre||''} 😊 Te fue asignado un nuevo paciente en Red de Atención Psicológica Humanista.
+
+Paciente: ${r.nombre}
+Teléfono: ${r.telefono}
+Asociación: ${assoc}
+
+Por favor, ponte en contacto para continuar con su proceso de atención.`;
+  window.open(`https://wa.me/${waPhone(p.whatsapp)}?text=${encodeURIComponent(text)}`,'_blank');
 }
 
 function consentLandingUrl(formUrl,request,association){
@@ -383,7 +423,7 @@ async function openAppointmentForm(requestId, appointment=null){
   $('#x').onclick=closeModal;
   $('#apptService').onchange=()=>{const op=$('#apptService').selectedOptions[0];if(op?.dataset.duration)$('#apptDuration').value=op.dataset.duration;};
   $('#saveAppt').onclick=async()=>{const fecha=$('#apptDate').value,hora=$('#apptTime').value,duracion=Number($('#apptDuration').value||60),notas=$('#apptNotes').value.trim(),servicio_id=$('#apptService').value||null;if(!fecha||!hora)return alert('Selecciona fecha y hora.');
-    const professional_id=state.profile.rol==='profesional'?state.professional?.id:(appointment?.profesional_id||r?.profesional_id||state.professional?.id);if(!professional_id)return alert('No hay profesional asignado.');
+    const profesional_id=state.profile.rol==='profesional'?state.professional?.id:(appointment?.profesional_id||r?.profesional_id||state.professional?.id);if(!profesional_id)return alert('No hay profesional asignado.');
     const payload={solicitud_id:req.id||null,profesional_id,servicio_id,paciente_nombre:req.nombre,paciente_telefono:req.telefono,fecha,hora_inicio:hora,duracion_min:duracion,notas};let result;
     if(appointment)result=await db.from('citas').update(payload).eq('id',appointment.id);else result=await db.from('citas').insert(payload);if(result.error)return alert(result.error.message);
     if(req.id)await db.from('solicitudes_atencion').update({estado:'cita_agendada'}).eq('id',req.id);closeModal();notify('Cita guardada.');appointment?renderAppointments():renderPatients();};

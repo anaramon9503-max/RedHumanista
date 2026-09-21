@@ -266,5 +266,142 @@ input:focus,select:focus,textarea:focus{border-color:#8fcbd0;box-shadow:0 0 0 3p
   <div id="moreMenu" class="more-menu hidden" aria-hidden="true"></div>
   <div id="modal" class="modal hidden"><div class="modal-card" id="modalCard"></div></div>
   <script type="module" src="panel.js?v=17"></script>
+  <script>
+  /* v18: hotfix estable para asignación en móvil.
+     Se deja panel.js intacto para no tocar login ni navegación. */
+  (() => {
+    const cfg = window.HUMANISTA_CONFIG || {};
+    if (!window.supabase || !cfg.SUPABASE_URL || !cfg.SUPABASE_ANON_KEY) return;
+
+    const hotDb = window.supabase.createClient(cfg.SUPABASE_URL, cfg.SUPABASE_ANON_KEY);
+    let currentAssignId = sessionStorage.getItem('rh_current_assign_id') || null;
+
+    const digits = (v='') => String(v).replace(/\D/g, '');
+    const waPhone = (v='') => {
+      let n = digits(v);
+      if (n.length === 10) n = (cfg.WHATSAPP_PAIS_DEFAULT || '52') + n;
+      return n;
+    };
+
+    function assignMessage(text, type='error') {
+      const msg = document.querySelector('#assignMessage');
+      if (!msg) return;
+      msg.textContent = text;
+      msg.className = `message ${type}`;
+    }
+
+    async function saveAssignment(btn) {
+      const id = currentAssignId || sessionStorage.getItem('rh_current_assign_id');
+      const profesional_id = document.querySelector('#assignPro')?.value || null;
+      const asociacion_id = document.querySelector('#assignAssoc')?.value || null;
+
+      if (!id) {
+        assignMessage('No pude identificar la solicitud. Cierra esta ventana y vuelve a tocar “Asignar profesional”.');
+        return;
+      }
+      if (!profesional_id) {
+        assignMessage('Selecciona un profesional.');
+        return;
+      }
+
+      btn.disabled = true;
+      btn.textContent = 'Guardando…';
+      assignMessage('Guardando asignación…', '');
+
+      try {
+        const { data, error } = await hotDb
+          .from('solicitudes_atencion')
+          .update({
+            profesional_id,
+            asociacion_id,
+            estado: 'asignada',
+            fecha_asignacion: new Date().toISOString()
+          })
+          .eq('id', id)
+          .select('id,profesional_id,asociacion_id,estado')
+          .maybeSingle();
+
+        if (error) throw error;
+        if (!data) throw new Error('Supabase no devolvió la solicitud actualizada. Revisa la política RLS de administración.');
+
+        assignMessage('Asignación guardada correctamente.', 'success');
+        btn.textContent = 'Guardado ✓';
+        sessionStorage.removeItem('rh_current_assign_id');
+        setTimeout(() => location.reload(), 650);
+      } catch (err) {
+        console.error('v18 saveAssignment', err);
+        assignMessage('No se pudo guardar: ' + (err?.message || 'Error desconocido'));
+        btn.disabled = false;
+        btn.textContent = 'Guardar asignación';
+      }
+    }
+
+    async function whatsappProfessional(id) {
+      try {
+        const { data: r, error } = await hotDb
+          .from('solicitudes_atencion')
+          .select('id,nombre,telefono,asociacion_id,profesional_id, profesionales(nombre,whatsapp), asociaciones(nombre)')
+          .eq('id', id)
+          .maybeSingle();
+        if (error) throw error;
+        if (!r) throw new Error('No encontré la solicitud.');
+
+        const p = Array.isArray(r.profesionales) ? r.profesionales[0] : r.profesionales;
+        const a = Array.isArray(r.asociaciones) ? r.asociaciones[0] : r.asociaciones;
+        if (!p?.whatsapp) throw new Error('El profesional asignado no tiene WhatsApp registrado.');
+
+        const text = `Hola ${p.nombre || ''} 😊 Te fue asignado un nuevo paciente en Red de Atención Psicológica Humanista.\n\nPaciente: ${r.nombre}\nTeléfono: ${r.telefono}\nAsociación: ${a?.nombre || 'Sin asociación asignada'}\n\nPor favor, ponte en contacto para continuar con su proceso de atención.`;
+        location.href = `https://wa.me/${waPhone(p.whatsapp)}?text=${encodeURIComponent(text)}`;
+      } catch (err) {
+        alert(err?.message || 'No se pudo abrir WhatsApp.');
+      }
+    }
+
+    function ensureProfessionalButtons() {
+      document.querySelectorAll('.request-card').forEach(card => {
+        const assign = card.querySelector('[data-assign]');
+        if (!assign) return;
+        const id = assign.dataset.assign;
+        const isAssigned = /Cambiar profesional/i.test(assign.textContent || '');
+        if (!isAssigned) return;
+        if (card.querySelector(`[data-wa-professional="${id}"]`) || card.querySelector(`[data-hot-wa-professional="${id}"]`)) return;
+
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'btn btn-whatsapp';
+        b.dataset.hotWaProfessional = id;
+        b.textContent = 'WhatsApp profesional';
+        assign.insertAdjacentElement('afterend', b);
+      });
+    }
+
+    document.addEventListener('click', (e) => {
+      const assign = e.target.closest?.('[data-assign]');
+      if (assign) {
+        currentAssignId = assign.dataset.assign || null;
+        if (currentAssignId) sessionStorage.setItem('rh_current_assign_id', currentAssignId);
+      }
+
+      const save = e.target.closest?.('#saveAssign');
+      if (save) {
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        saveAssignment(save);
+        return;
+      }
+
+      const wa = e.target.closest?.('[data-hot-wa-professional]');
+      if (wa) {
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        whatsappProfessional(wa.dataset.hotWaProfessional);
+      }
+    }, true);
+
+    const page = document.querySelector('#page');
+    if (page) new MutationObserver(ensureProfessionalButtons).observe(page, { childList:true, subtree:true });
+    ensureProfessionalButtons();
+  })();
+  </script>
 </body>
 </html>
