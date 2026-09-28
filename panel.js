@@ -97,7 +97,8 @@ function navIcon(id){
     profesionales:'👩‍⚕️',
     servicios:'🛍️',
     horarios:'🕐',
-    asociaciones:'🤝'
+    asociaciones:'🤝',
+    perfil:'♙'
   };
   return icons[id]||'•';
 }
@@ -105,7 +106,7 @@ function renderNav(){
   // En móvil quedan cinco accesos: Solicitudes, Pacientes, Citas,
   // Profesionales y Más. Servicios/Horarios/Asociaciones viven dentro de Más.
   const admin=[['solicitudes','Solicitudes'],['pacientes','Pacientes'],['agenda','Citas'],['profesionales','Profes.'],['servicios','Servicios'],['horarios','Horarios'],['asociaciones','Colaboraciones']];
-  const pro=[['inicio','Inicio'],['pacientes','Pacientes'],['agenda','Citas'],['horarios','Horarios']];
+  const pro=[['inicio','Inicio'],['pacientes','Pacientes'],['agenda','Citas'],['horarios','Horarios'],['perfil','Perfil']];
   const links=state.profile.rol==='admin'?admin:pro;
   sidebar.innerHTML=links.map(([id,label],i)=>`<button class="nav-btn ${state.profile.rol==='admin'&&i>3?'nav-extra':''}" data-page="${id}"><span class="nav-icon">${navIcon(id)}</span><span class="nav-label">${label}</span></button>`).join('') + (state.profile.rol==='admin'?`<button class="nav-btn nav-more" id="navMore" type="button"><span class="nav-icon">•••</span><span class="nav-label">Más</span></button>`:'');
   $$('.nav-btn[data-page]',sidebar).forEach(b=>b.onclick=()=>go(b.dataset.page));
@@ -137,6 +138,7 @@ async function go(name){
   if(name==='servicios')return renderServices();
   if(name==='asociaciones')return renderAssociations();
   if(name==='horarios')return state.profile.rol==='admin'?renderAdminSchedules():renderSchedules();
+  if(name==='perfil')return renderProfessionalProfile();
 }
 
 
@@ -149,16 +151,26 @@ async function renderProfessionalHome(){
     db.from('horarios').select('*').eq('profesional_id',state.professional.id).eq('activo',true).order('dia_semana').order('hora_inicio'),
     db.from('bloqueos_horario').select('*').eq('profesional_id',state.professional.id).gte('fecha',today).order('fecha').order('hora_inicio').limit(4)
   ]);
-  if(ae||pe||se){console.error(ae||pe||se);}
+  if(ae||pe||se)console.error(ae||pe||se);
   const upcoming=appts||[], todayAppts=upcoming.filter(a=>a.fecha===today), next=upcoming[0], days=['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
-  const scheduleSummary=(schedules||[]).slice(0,4).map(h=>`${days[h.dia_semana]} ${time12(h.hora_inicio)}–${time12(h.hora_fin)}`).join(' · ')||'Sin horario registrado';
-  page.innerHTML=`<section class="pro-home-head"><div><span class="pro-eyebrow">Hola, ${esc(state.professional.nombre.split(' ')[0])}</span><h2>Tu agenda</h2><p>Lo importante de hoy, en un solo lugar.</p></div></section>
-    <div class="pro-stats"><button class="pro-stat" id="homeToday"><strong>${todayAppts.length}</strong><span>Citas hoy</span></button><button class="pro-stat" id="homePatients"><strong>${(patients||[]).length}</strong><span>Pacientes activos</span></button><button class="pro-stat wide" id="homeNext"><strong>${next?`${dateMX(next.fecha)} · ${time12(next.hora_inicio)}`:'Sin cita próxima'}</strong><span>Próxima cita</span></button></div>
-    <section class="pro-card"><div class="pro-card-head"><div><h3>Próximas citas</h3><p>${todayAppts.length?'Tu agenda para continuar el día.':'Consulta tus siguientes citas.'}</p></div><button class="btn btn-soft btn-small" id="homeAllAppts">Ver citas</button></div>${upcoming.length?`<div class="home-appts">${upcoming.slice(0,3).map(a=>`<button class="home-appt" data-home-appt><span class="home-date">${a.fecha===today?'Hoy':dateMX(a.fecha)}</span><span><strong>${esc(a.paciente_nombre)}</strong><small>${time12(a.hora_inicio)} · ${a.duracion_min} min</small></span></button>`).join('')}</div>`:'<div class="home-empty">No tienes citas próximas.</div>'}</section>
-    <section class="pro-card"><div class="pro-card-head"><div><h3>Mi disponibilidad</h3><p>${esc(scheduleSummary)}</p></div><button class="btn btn-soft btn-small" id="homeSchedules">Administrar</button></div>${!be&&(blocks||[]).length?`<div class="home-block-note">Próximo bloqueo: <strong>${dateMX(blocks[0].fecha)}</strong> · ${blocks[0].todo_el_dia?'Todo el día':`${time12(blocks[0].hora_inicio)}–${time12(blocks[0].hora_fin)}`}</div>`:''}<button class="btn btn-primary btn-block" id="homeBlock">Bloquear día u horario</button></section>`;
-  $('#homeToday').onclick=$('#homeAllAppts').onclick=()=>go('agenda'); $('#homePatients').onclick=()=>go('pacientes'); $('#homeNext').onclick=()=>go('agenda'); $('#homeSchedules').onclick=()=>go('horarios'); $('#homeBlock').onclick=()=>openBlock();
+  const scheduleSummary=(schedules||[]).slice(0,3).map(h=>`${days[h.dia_semana]} ${time12(h.hora_inicio)}–${time12(h.hora_fin)}`).join(' · ')||'Aún no has registrado tu horario';
+  page.innerHTML=`<section class="pro-welcome"><span class="pro-eyebrow">Hola, ${esc(state.professional.nombre.split(' ')[0])} 👋</span><h2>Tu agenda de hoy</h2><p>Todo lo importante, en un solo lugar.</p></section>
+    <div class="pro-stats"><button class="pro-stat" id="homeToday"><strong>${todayAppts.length}</strong><span>Citas hoy</span></button><button class="pro-stat" id="homePatients"><strong>${(patients||[]).length}</strong><span>Pacientes</span></button><button class="pro-stat" id="homeNext"><strong>${next?time12(next.hora_inicio):'—'}</strong><span>${next?'Próxima cita':'Sin próxima cita'}</span></button></div>
+    <div class="quick-actions"><button class="quick-action primary" id="homeNewAppt"><span>＋</span><b>Agendar cita</b></button><button class="quick-action" id="homeBlock"><span>◷</span><b>Bloquear horario</b></button></div>
+    <section class="pro-card"><div class="pro-card-head"><div><h3>Próximas citas</h3><p>${upcoming.length?'Tus siguientes citas programadas.':'Hoy está tranquilo por aquí.'}</p></div><button class="text-action" id="homeAllAppts">Ver todas</button></div>${upcoming.length?`<div class="home-appts">${upcoming.slice(0,3).map(a=>`<button class="home-appt" data-home-appt><span class="home-date">${a.fecha===today?'Hoy':dateMX(a.fecha)}</span><span><strong>${esc(a.paciente_nombre)}</strong><small>${time12(a.hora_inicio)} · ${a.duracion_min} min</small></span></button>`).join('')}</div>`:'<div class="home-empty">No tienes citas próximas.</div>'}</section>
+    <section class="pro-card availability-card"><div><h3>Mi disponibilidad</h3><p>${esc(scheduleSummary)}</p></div><button class="text-action" id="homeSchedules">Editar horario</button>${!be&&(blocks||[]).length?`<div class="home-block-note">Próximo bloqueo: <strong>${dateMX(blocks[0].fecha)}</strong> · ${blocks[0].todo_el_dia?'Todo el día':`${time12(blocks[0].hora_inicio)}–${time12(blocks[0].hora_fin)}`}</div>`:''}</section>`;
+  $('#homeToday').onclick=$('#homeAllAppts').onclick=()=>go('agenda');
+  $('#homePatients').onclick=()=>go('pacientes'); $('#homeNext').onclick=()=>go('agenda');
+  $('#homeSchedules').onclick=()=>go('horarios'); $('#homeBlock').onclick=()=>openBlock();
+  $('#homeNewAppt').onclick=()=>openProfessionalAppointment();
 }
 
+function renderProfessionalProfile(){
+  if(!state.professional)return;
+  page.innerHTML=`<section class="compact-head"><span class="pro-eyebrow">Mi cuenta</span><h2>Perfil</h2><p>Información de tu acceso a Red Humanista.</p></section>
+    <section class="pro-card profile-card"><div class="profile-avatar">${esc(state.professional.nombre.charAt(0).toUpperCase())}</div><div><h3>${esc(state.professional.nombre)}</h3><p>Profesional</p></div></section>
+    <section class="pro-card profile-info"><div><span>Correo</span><strong>${esc(state.user?.email||'—')}</strong></div><div><span>WhatsApp</span><strong>${esc(state.professional.whatsapp||'—')}</strong></div></section>`;
+}
 async function loadProfessionals(){const {data,error}=await db.from('profesionales').select('*').eq('activo',true).order('nombre');if(error)throw error;state.professionals=data||[];}
 async function loadAssociations(){const {data,error}=await db.from('asociaciones').select('*, formularios(*)').eq('activo',true).order('nombre');if(error)throw error;state.associations=(data||[]).map(a=>({...a,formularios:(a.formularios||[]).filter(f=>f.activo).sort((x,y)=>x.orden-y.orden)}));}
 async function loadServices(includeInactive=true){let q=db.from('servicios').select('*, profesional_servicios(profesional_id,activo)').order('nombre');if(!includeInactive)q=q.eq('activo',true);const {data,error}=await q;if(error)throw error;state.services=data||[];}
