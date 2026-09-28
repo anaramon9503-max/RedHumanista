@@ -2,7 +2,7 @@ const cfg = window.HUMANISTA_CONFIG || {};
 const db = window.supabase.createClient(cfg.SUPABASE_URL, cfg.SUPABASE_ANON_KEY);
 const $ = (s, root=document) => root.querySelector(s);
 const $$ = (s, root=document) => [...root.querySelectorAll(s)];
-const state = { user:null, profile:null, professional:null, professionals:[], associations:[], requests:[], appointments:[], schedules:[], services:[] };
+const state = { user:null, profile:null, professional:null, professionals:[], associations:[], requests:[], appointments:[], schedules:[], blocks:[], services:[] };
 
 const loginView=$('#loginView'), appView=$('#appView'), page=$('#page'), sidebar=$('#sidebar'), modal=$('#modal'), modalCard=$('#modalCard');
 const globalMessage=$('#globalMessage'), moreMenu=$('#moreMenu');
@@ -85,11 +85,12 @@ async function boot(user){
   if(profile.rol==='profesional'&&!state.professional) throw new Error('La cuenta no está vinculada a un profesional.');
   loginView.classList.add('hidden');appView.classList.remove('hidden');
   $('#userEmail').textContent=user.email||'';$('#roleLabel').textContent=profile.rol==='admin'?'Administración':'Profesional';
-  renderNav(); await go(profile.rol==='admin'?'solicitudes':'pacientes');
+  renderNav(); await go(profile.rol==='admin'?'solicitudes':'inicio');
 }
 
 function navIcon(id){
   const icons={
+    inicio:'⌂',
     solicitudes:'📩',
     pacientes:'👥',
     agenda:'📅',
@@ -104,7 +105,7 @@ function renderNav(){
   // En móvil quedan cinco accesos: Solicitudes, Pacientes, Citas,
   // Profesionales y Más. Servicios/Horarios/Asociaciones viven dentro de Más.
   const admin=[['solicitudes','Solicitudes'],['pacientes','Pacientes'],['agenda','Citas'],['profesionales','Profes.'],['servicios','Servicios'],['horarios','Horarios'],['asociaciones','Colaboraciones']];
-  const pro=[['pacientes','Mis pacientes'],['agenda','Mis citas'],['horarios','Mi disponibilidad']];
+  const pro=[['inicio','Inicio'],['pacientes','Pacientes'],['agenda','Citas'],['horarios','Horarios']];
   const links=state.profile.rol==='admin'?admin:pro;
   sidebar.innerHTML=links.map(([id,label],i)=>`<button class="nav-btn ${state.profile.rol==='admin'&&i>3?'nav-extra':''}" data-page="${id}"><span class="nav-icon">${navIcon(id)}</span><span class="nav-label">${label}</span></button>`).join('') + (state.profile.rol==='admin'?`<button class="nav-btn nav-more" id="navMore" type="button"><span class="nav-icon">•••</span><span class="nav-label">Más</span></button>`:'');
   $$('.nav-btn[data-page]',sidebar).forEach(b=>b.onclick=()=>go(b.dataset.page));
@@ -128,6 +129,7 @@ async function go(name){
   if($('#navMore')) $('#navMore').classList.toggle('active',['servicios','horarios','asociaciones'].includes(name));
   if(moreMenu)moreMenu.classList.add('hidden');
   page.innerHTML='<div class="empty">Cargando...</div>';
+  if(name==='inicio')return renderProfessionalHome();
   if(name==='solicitudes')return renderRequests();
   if(name==='pacientes')return renderPatients();
   if(name==='agenda')return renderAppointments();
@@ -135,6 +137,26 @@ async function go(name){
   if(name==='servicios')return renderServices();
   if(name==='asociaciones')return renderAssociations();
   if(name==='horarios')return state.profile.rol==='admin'?renderAdminSchedules():renderSchedules();
+}
+
+
+async function renderProfessionalHome(){
+  if(!state.professional)return;
+  const today=new Date().toISOString().slice(0,10);
+  const [{data:appts,error:ae},{data:patients,error:pe},{data:schedules,error:se},{data:blocks,error:be}]=await Promise.all([
+    db.from('citas').select('*').eq('profesional_id',state.professional.id).gte('fecha',today).neq('estado','cancelada').order('fecha').order('hora_inicio').limit(6),
+    db.from('solicitudes_atencion').select('id').eq('profesional_id',state.professional.id).neq('estado','cerrada'),
+    db.from('horarios').select('*').eq('profesional_id',state.professional.id).eq('activo',true).order('dia_semana').order('hora_inicio'),
+    db.from('bloqueos_horario').select('*').eq('profesional_id',state.professional.id).gte('fecha',today).order('fecha').order('hora_inicio').limit(4)
+  ]);
+  if(ae||pe||se){console.error(ae||pe||se);}
+  const upcoming=appts||[], todayAppts=upcoming.filter(a=>a.fecha===today), next=upcoming[0], days=['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
+  const scheduleSummary=(schedules||[]).slice(0,4).map(h=>`${days[h.dia_semana]} ${time12(h.hora_inicio)}–${time12(h.hora_fin)}`).join(' · ')||'Sin horario registrado';
+  page.innerHTML=`<section class="pro-home-head"><div><span class="pro-eyebrow">Hola, ${esc(state.professional.nombre.split(' ')[0])}</span><h2>Tu agenda</h2><p>Lo importante de hoy, en un solo lugar.</p></div></section>
+    <div class="pro-stats"><button class="pro-stat" id="homeToday"><strong>${todayAppts.length}</strong><span>Citas hoy</span></button><button class="pro-stat" id="homePatients"><strong>${(patients||[]).length}</strong><span>Pacientes activos</span></button><button class="pro-stat wide" id="homeNext"><strong>${next?`${dateMX(next.fecha)} · ${time12(next.hora_inicio)}`:'Sin cita próxima'}</strong><span>Próxima cita</span></button></div>
+    <section class="pro-card"><div class="pro-card-head"><div><h3>Próximas citas</h3><p>${todayAppts.length?'Tu agenda para continuar el día.':'Consulta tus siguientes citas.'}</p></div><button class="btn btn-soft btn-small" id="homeAllAppts">Ver citas</button></div>${upcoming.length?`<div class="home-appts">${upcoming.slice(0,3).map(a=>`<button class="home-appt" data-home-appt><span class="home-date">${a.fecha===today?'Hoy':dateMX(a.fecha)}</span><span><strong>${esc(a.paciente_nombre)}</strong><small>${time12(a.hora_inicio)} · ${a.duracion_min} min</small></span></button>`).join('')}</div>`:'<div class="home-empty">No tienes citas próximas.</div>'}</section>
+    <section class="pro-card"><div class="pro-card-head"><div><h3>Mi disponibilidad</h3><p>${esc(scheduleSummary)}</p></div><button class="btn btn-soft btn-small" id="homeSchedules">Administrar</button></div>${!be&&(blocks||[]).length?`<div class="home-block-note">Próximo bloqueo: <strong>${dateMX(blocks[0].fecha)}</strong> · ${blocks[0].todo_el_dia?'Todo el día':`${time12(blocks[0].hora_inicio)}–${time12(blocks[0].hora_fin)}`}</div>`:''}<button class="btn btn-primary btn-block" id="homeBlock">Bloquear día u horario</button></section>`;
+  $('#homeToday').onclick=$('#homeAllAppts').onclick=()=>go('agenda'); $('#homePatients').onclick=()=>go('pacientes'); $('#homeNext').onclick=()=>go('agenda'); $('#homeSchedules').onclick=()=>go('horarios'); $('#homeBlock').onclick=()=>openBlock();
 }
 
 async function loadProfessionals(){const {data,error}=await db.from('profesionales').select('*').eq('activo',true).order('nombre');if(error)throw error;state.professionals=data||[];}
@@ -675,10 +697,24 @@ function openForms(a){
   });
 }
 
-async function renderSchedules(){
-  const {data,error}=await db.from('horarios').select('*').eq('profesional_id',state.professional.id).order('dia_semana').order('hora_inicio');if(error){page.innerHTML='<div class="message error">No se pudo cargar tu disponibilidad.</div>';return;}state.schedules=data||[];const days=['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
-  page.innerHTML=`<div class="section-head"><div><h2>Mi disponibilidad</h2><p>Estos horarios son internos. El paciente no los ve ni puede reservarlos.</p></div><button id="newSchedule" class="btn btn-primary">+ Agregar horario</button></div><div class="list">${state.schedules.length?state.schedules.map(h=>`<article class="item"><div class="item-top"><div><h3>${days[h.dia_semana]}</h3><div class="meta">${time12(h.hora_inicio)} a ${time12(h.hora_fin)}</div></div><span class="badge ${h.activo?'ok':'neutral'}">${h.activo?'Activo':'Inactivo'}</span></div><div class="actions"><button class="btn btn-soft" data-edit-schedule="${h.id}">Editar</button><button class="btn btn-danger" data-del-schedule="${h.id}">Eliminar</button></div></article>`).join(''):'<div class="empty">Aún no has registrado disponibilidad.</div>'}</div>`;$('#newSchedule').onclick=()=>openSchedule();$$('[data-edit-schedule]').forEach(b=>b.onclick=()=>openSchedule(state.schedules.find(x=>x.id===b.dataset.editSchedule)));$$('[data-del-schedule]').forEach(b=>b.onclick=async()=>{if(!confirm('¿Eliminar este horario?'))return;const {error}=await db.from('horarios').delete().eq('id',b.dataset.delSchedule);if(error)return alert(error.message);renderSchedules();});
+async function loadBlocks(professionalId){
+  let q=db.from('bloqueos_horario').select('*, profesionales(nombre)').order('fecha').order('hora_inicio');
+  if(professionalId)q=q.eq('profesional_id',professionalId);
+  const {data,error}=await q;if(error)throw error;state.blocks=data||[];
 }
-function openSchedule(h=null){const days=['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];showModal(`<div class="modal-head"><h3>${h?'Editar':'Agregar'} disponibilidad</h3><button class="icon-btn" id="x">✕</button></div><div class="field"><label>Día</label><select id="schDay">${days.map((d,i)=>`<option value="${i}" ${h?.dia_semana===i?'selected':''}>${d}</option>`).join('')}</select></div><div class="grid-2"><div class="field"><label>Desde</label><input id="schStart" type="time" value="${h?.hora_inicio?.slice(0,5)||'09:00'}"></div><div class="field"><label>Hasta</label><input id="schEnd" type="time" value="${h?.hora_fin?.slice(0,5)||'17:00'}"></div></div><button id="saveSchedule" class="btn btn-primary btn-block">Guardar</button>`);$('#x').onclick=closeModal;$('#saveSchedule').onclick=async()=>{const payload={profesional_id:state.professional.id,dia_semana:Number($('#schDay').value),hora_inicio:$('#schStart').value,hora_fin:$('#schEnd').value};if(payload.hora_inicio>=payload.hora_fin)return alert('La hora final debe ser posterior.');const result=h?await db.from('horarios').update(payload).eq('id',h.id):await db.from('horarios').insert(payload);if(result.error)return alert(result.error.message);closeModal();renderSchedules();};}
+async function renderSchedules(){
+  try{const [{data,error}]=await Promise.all([db.from('horarios').select('*').eq('profesional_id',state.professional.id).order('dia_semana').order('hora_inicio'),loadBlocks(state.professional.id)]);if(error)throw error;state.schedules=data||[];const days=['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+  page.innerHTML=`<div class="compact-head"><div><span class="pro-eyebrow">Organiza tu agenda</span><h2>Horarios</h2><p>Define tu horario habitual y agrega excepciones cuando no estés disponible.</p></div></div>
+  <section class="pro-card"><div class="pro-card-head"><div><h3>Horario habitual</h3><p>Se repite cada semana.</p></div><button id="newSchedule" class="btn btn-primary btn-small">+ Horario</button></div><div class="compact-schedule-list">${state.schedules.length?state.schedules.map(h=>`<div class="compact-schedule"><div><strong>${days[h.dia_semana]}</strong><span>${time12(h.hora_inicio)} – ${time12(h.hora_fin)}</span></div><div><button class="mini-link" data-edit-schedule="${h.id}">Editar</button><button class="mini-link danger-text" data-del-schedule="${h.id}">Eliminar</button></div></div>`).join(''):'<div class="home-empty">Aún no has registrado tu horario habitual.</div>'}</div></section>
+  <section class="pro-card"><div class="pro-card-head"><div><h3>Bloqueos</h3><p>Vacaciones, feriados o unas horas específicas.</p></div><button id="newBlock" class="btn btn-soft btn-small">+ Bloquear</button></div><div class="compact-schedule-list">${state.blocks.length?state.blocks.map(b=>`<div class="compact-schedule"><div><strong>${dateMX(b.fecha)}</strong><span>${b.todo_el_dia?'Todo el día':`${time12(b.hora_inicio)} – ${time12(b.hora_fin)}`}${b.motivo?` · ${esc(b.motivo)}`:''}</span></div><div><button class="mini-link" data-edit-block="${b.id}">Editar</button><button class="mini-link danger-text" data-del-block="${b.id}">Eliminar</button></div></div>`).join(''):'<div class="home-empty">No tienes bloqueos registrados.</div>'}</div></section>`;
+  $('#newSchedule').onclick=()=>openSchedule();$('#newBlock').onclick=()=>openBlock();$$('[data-edit-schedule]').forEach(b=>b.onclick=()=>openSchedule(state.schedules.find(x=>x.id===b.dataset.editSchedule)));$$('[data-del-schedule]').forEach(b=>b.onclick=async()=>{if(!confirm('¿Eliminar este horario?'))return;const {error}=await db.from('horarios').delete().eq('id',b.dataset.delSchedule);if(error)return alert(error.message);renderSchedules();});$$('[data-edit-block]').forEach(b=>b.onclick=()=>openBlock(state.blocks.find(x=>x.id===b.dataset.editBlock)));$$('[data-del-block]').forEach(b=>b.onclick=async()=>{if(!confirm('¿Eliminar este bloqueo?'))return;const {error}=await db.from('bloqueos_horario').delete().eq('id',b.dataset.delBlock);if(error)return alert(error.message);renderSchedules();});
+  }catch(e){console.error(e);page.innerHTML='<div class="message error">No se pudo cargar la disponibilidad. Ejecuta primero 05_bloqueos_horario.sql en Supabase.</div>';}
+}
+function openSchedule(h=null){const days=['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];showModal(`<div class="modal-head"><h3>${h?'Editar':'Agregar'} horario habitual</h3><button class="icon-btn" id="x">✕</button></div><div class="field"><label>Día</label><select id="schDay">${days.map((d,i)=>`<option value="${i}" ${h?.dia_semana===i?'selected':''}>${d}</option>`).join('')}</select></div><div class="grid-2"><div class="field"><label>Desde</label><input id="schStart" type="time" value="${h?.hora_inicio?.slice(0,5)||'09:00'}"></div><div class="field"><label>Hasta</label><input id="schEnd" type="time" value="${h?.hora_fin?.slice(0,5)||'17:00'}"></div></div><button id="saveSchedule" class="btn btn-primary btn-block">Guardar</button>`);$('#x').onclick=closeModal;$('#saveSchedule').onclick=async()=>{const payload={profesional_id:state.professional.id,dia_semana:Number($('#schDay').value),hora_inicio:$('#schStart').value,hora_fin:$('#schEnd').value};if(payload.hora_inicio>=payload.hora_fin)return alert('La hora final debe ser posterior.');const result=h?await db.from('horarios').update(payload).eq('id',h.id):await db.from('horarios').insert(payload);if(result.error)return alert(result.error.message);closeModal();renderSchedules();};}
+function openBlock(b=null,professionalId=null){
+  const pid=professionalId||state.professional?.id||null; if(!pid)return alert('Selecciona un profesional.');
+  showModal(`<div class="modal-head"><div><h3>${b?'Editar':'Bloquear'} disponibilidad</h3><div class="help">Este cambio solo afecta la fecha seleccionada.</div></div><button class="icon-btn" id="x">✕</button></div><div class="field"><label>Fecha</label><input id="blockDate" type="date" value="${b?.fecha||''}"></div><label class="field-check"><input id="blockAllDay" type="checkbox" ${b?.todo_el_dia!==false?'checked':''}> Bloquear todo el día</label><div id="blockHours" class="grid-2 ${b?.todo_el_dia!==false?'hidden':''}"><div class="field"><label>Desde</label><input id="blockStart" type="time" value="${b?.hora_inicio?.slice(0,5)||'09:00'}"></div><div class="field"><label>Hasta</label><input id="blockEnd" type="time" value="${b?.hora_fin?.slice(0,5)||'10:00'}"></div></div><div class="field"><label>Motivo (opcional)</label><input id="blockReason" value="${esc(b?.motivo||'')}" placeholder="Feriado, vacaciones, cita personal..."></div><button id="saveBlock" class="btn btn-primary btn-block">Guardar bloqueo</button>`);
+  $('#x').onclick=closeModal;$('#blockAllDay').onchange=()=>$('#blockHours').classList.toggle('hidden',$('#blockAllDay').checked);$('#saveBlock').onclick=async()=>{const all=$('#blockAllDay').checked,payload={profesional_id:pid,fecha:$('#blockDate').value,todo_el_dia:all,hora_inicio:all?null:$('#blockStart').value,hora_fin:all?null:$('#blockEnd').value,motivo:$('#blockReason').value.trim()||null};if(!payload.fecha)return alert('Selecciona una fecha.');if(!all&&(!payload.hora_inicio||!payload.hora_fin||payload.hora_inicio>=payload.hora_fin))return alert('Revisa el rango de horas.');const result=b?await db.from('bloqueos_horario').update(payload).eq('id',b.id):await db.from('bloqueos_horario').insert(payload);if(result.error)return alert(result.error.message);closeModal();notify('Bloqueo guardado.');state.profile.rol==='profesional'?renderSchedules():renderAdminSchedules();};
+}
 
 (async()=>{const {data}=await db.auth.getSession();if(data.session?.user){try{await boot(data.session.user);}catch(e){console.error(e);}}})();
