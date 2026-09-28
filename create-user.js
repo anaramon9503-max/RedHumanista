@@ -77,14 +77,15 @@ export default async function handler(req, res) {
     whatsapp,
     email,
     password,
-    rol = 'profesional'
+    rol = 'profesional',
+    profesional_id = null
   } = req.body || {};
 
   if (
     !nombre ||
     !email ||
     !password ||
-    rol !== 'profesional'
+    !['admin','profesional'].includes(rol)
   ) {
     return res.status(400).json({
       error: 'Datos incompletos.'
@@ -112,7 +113,7 @@ export default async function handler(req, res) {
       .insert({
         id: userId,
         nombre,
-        rol: 'profesional',
+        rol,
         activo: true
       });
 
@@ -120,17 +121,24 @@ export default async function handler(req, res) {
       throw profileError;
     }
 
-    const { error: proError } = await admin
-      .from('profesionales')
-      .insert({
-        usuario_id: userId,
-        nombre,
-        whatsapp,
-        activo: true
-      });
-
-    if (proError) {
-      throw proError;
+    if (rol === 'profesional') {
+      let proError;
+      if (profesional_id) {
+        const result = await admin
+          .from('profesionales')
+          .update({ usuario_id: userId, nombre, whatsapp, activo: true })
+          .eq('id', profesional_id)
+          .is('usuario_id', null)
+          .select('id')
+          .single();
+        proError = result.error;
+      } else {
+        const result = await admin
+          .from('profesionales')
+          .insert({ usuario_id: userId, nombre, whatsapp, activo: true });
+        proError = result.error;
+      }
+      if (proError) throw proError;
     }
 
     return res.status(200).json({

@@ -103,7 +103,7 @@ function navIcon(id){
 function renderNav(){
   // En móvil quedan cinco accesos: Solicitudes, Pacientes, Citas,
   // Profesionales y Más. Servicios/Horarios/Asociaciones viven dentro de Más.
-  const admin=[['solicitudes','Solicitudes'],['pacientes','Pacientes'],['agenda','Citas'],['profesionales','Profes.'],['servicios','Servicios'],['horarios','Horarios'],['asociaciones','Asociaciones']];
+  const admin=[['solicitudes','Solicitudes'],['pacientes','Pacientes'],['agenda','Citas'],['profesionales','Profes.'],['servicios','Servicios'],['horarios','Horarios'],['asociaciones','Colaboraciones']];
   const pro=[['pacientes','Mis pacientes'],['agenda','Mis citas'],['horarios','Mi disponibilidad']];
   const links=state.profile.rol==='admin'?admin:pro;
   sidebar.innerHTML=links.map(([id,label],i)=>`<button class="nav-btn ${state.profile.rol==='admin'&&i>3?'nav-extra':''}" data-page="${id}"><span class="nav-icon">${navIcon(id)}</span><span class="nav-label">${label}</span></button>`).join('') + (state.profile.rol==='admin'?`<button class="nav-btn nav-more" id="navMore" type="button"><span class="nav-icon">•••</span><span class="nav-label">Más</span></button>`:'');
@@ -114,7 +114,7 @@ function renderNav(){
 function renderMoreMenu(){
   if(!moreMenu)return;
   if(state.profile?.rol!=='admin'){moreMenu.classList.add('hidden');moreMenu.innerHTML='';return;}
-  moreMenu.innerHTML=`<button data-more-page="servicios"><span>🛍️</span> Servicios</button><button data-more-page="horarios"><span>🕐</span> Horarios</button><button data-more-page="asociaciones"><span>🤝</span> Asociaciones</button>`;
+  moreMenu.innerHTML=`<button data-more-page="servicios"><span>🛍️</span> Servicios</button><button data-more-page="horarios"><span>🕐</span> Horarios</button><button data-more-page="asociaciones"><span>🤝</span> Colaboraciones</button>`;
   $$('[data-more-page]',moreMenu).forEach(b=>b.onclick=()=>{moreMenu.classList.add('hidden');go(b.dataset.morePage);});
 }
 function toggleMoreMenu(){
@@ -185,7 +185,7 @@ function openRequestEdit(id){
     <div class="field"><label>Nombre</label><input id="reqEditName" value="${esc(r.nombre||'')}"></div>
     <div class="field"><label>Teléfono</label><input id="reqEditPhone" inputmode="tel" value="${esc(r.telefono||'')}"></div>
     <div class="field"><label>Profesional</label><select id="reqEditPro"><option value="">Sin asignar</option>${state.professionals.map(p=>`<option value="${p.id}" ${r.profesional_id===p.id?'selected':''}>${esc(p.nombre)}</option>`).join('')}</select></div>
-    <div class="field"><label>Asociación</label><select id="reqEditAssoc"><option value="">Sin asociación</option>${state.associations.map(a=>`<option value="${a.id}" ${r.asociacion_id===a.id?'selected':''}>${esc(a.nombre)}</option>`).join('')}</select></div>
+    <div class="field"><label>Colaboración</label><select id="reqEditAssoc"><option value="">Sin colaboración</option>${state.associations.map(a=>`<option value="${a.id}" ${r.asociacion_id===a.id?'selected':''}>${esc(a.nombre)}</option>`).join('')}</select></div>
     <button class="btn btn-primary btn-block" id="saveRequestEdit">Guardar cambios</button>`);
   $('#x').onclick=closeModal;
   $('#saveRequestEdit').onclick=async()=>{
@@ -211,7 +211,7 @@ function openAssign(id){
   const r=state.requests.find(x=>x.id===id); if(!r)return;
   showModal(`<div class="modal-head"><div><h3>${r.profesional_id?'Cambiar asignación':'Asignar profesional'}</h3><div class="help">${esc(r.nombre)} · ${esc(r.telefono)}</div></div><button type="button" class="icon-btn" id="x">✕</button></div>
     <div class="field"><label>Profesional</label><select id="assignPro"><option value="">Seleccionar...</option>${state.professionals.map(p=>`<option value="${p.id}" ${r.profesional_id===p.id?'selected':''}>${esc(p.nombre)}</option>`).join('')}</select></div>
-    <div class="field"><label>Asociación</label><select id="assignAssoc"><option value="">Sin asociación</option>${state.associations.map(a=>`<option value="${a.id}" ${r.asociacion_id===a.id?'selected':''}>${esc(a.nombre)}</option>`).join('')}</select><div class="help">La asociación define el consentimiento y formularios que aparecerán después en Pacientes.</div></div>
+    <div class="field"><label>Colaboración</label><select id="assignAssoc"><option value="">Sin colaboración</option>${state.associations.map(a=>`<option value="${a.id}" ${r.asociacion_id===a.id?'selected':''}>${esc(a.nombre)}</option>`).join('')}</select><div class="help">La colaboración define el consentimiento y formularios que aparecerán después en Pacientes.</div></div>
     <div id="assignMessage" class="message hidden"></div>
     <button type="button" class="btn btn-primary btn-block" id="saveAssign" data-request-id="${r.id}">Guardar asignación</button>`);
   $('#x').onclick=closeModal;
@@ -264,12 +264,12 @@ function waProfessional(id){
   const r=state.requests.find(x=>x.id===id);if(!r)return;
   const p=state.professionals.find(x=>x.id===r.profesional_id)||r.profesionales;
   if(!p?.whatsapp)return alert('El profesional asignado no tiene un WhatsApp registrado.');
-  const assoc=state.associations.find(x=>x.id===r.asociacion_id)?.nombre||'Sin asociación asignada';
+  const assoc=state.associations.find(x=>x.id===r.asociacion_id)?.nombre||'Sin colaboración asignada';
   const text=`Hola ${p.nombre||''} 😊 Te fue asignado un nuevo paciente en Red de Atención Psicológica Humanista.
 
 Paciente: ${r.nombre}
 Teléfono: ${r.telefono}
-Asociación: ${assoc}
+Colaboración: ${assoc}
 
 Por favor, ponte en contacto para continuar con su proceso de atención.`;
   window.open(`https://wa.me/${waPhone(p.whatsapp)}?text=${encodeURIComponent(text)}`,'_blank');
@@ -320,8 +320,8 @@ function paintPatients(){
 function patientCard(r){
   const admin=state.profile.rol==='admin';
   const pro=r.profesionales?.nombre||'Profesional';
-  const assoc=r.asociaciones?.nombre||'Sin asociación';
-  return `<article class="item patient-card"><div class="item-top"><div><h3>${esc(r.nombre)}</h3><div class="meta">📱 ${esc(r.telefono)}${admin?`<br>Profesional: <strong>${esc(pro)}</strong>`:''}<br>Asociación: ${esc(assoc)}</div></div>${statusBadge(r.estado)}</div>
+  const assoc=r.asociaciones?.nombre||'Sin colaboración';
+  return `<article class="item patient-card"><div class="item-top"><div><h3>${esc(r.nombre)}</h3><div class="meta">📱 ${esc(r.telefono)}${admin?`<br>Profesional: <strong>${esc(pro)}</strong>`:''}<br>Colaboración: ${esc(assoc)}</div></div>${statusBadge(r.estado)}</div>
     <div class="progress patient-progress"><span class="progress-step ${r.consentimiento_estado==='completado'?'done':''}">Consentimiento</span><span class="progress-step ${r.formularios_estado==='completado'?'done':''}">Formularios</span><span class="progress-step ${r.estado==='cita_agendada'?'done':''}">Cita</span></div>
     <div class="patient-actions"><button class="btn btn-whatsapp" data-patient-wa="${r.id}">WhatsApp</button><button class="btn btn-soft" data-patient-detail="${r.id}">Ver paciente</button></div></article>`;
 }
@@ -330,10 +330,10 @@ function openPatientDetail(id){
   const r=state.requests.find(x=>x.id===id);if(!r)return;
   const admin=state.profile.rol==='admin';
   const pro=r.profesionales?.nombre||state.professional?.nombre||'Profesional';
-  const assoc=r.asociaciones?.nombre||'Sin asociación';
+  const assoc=r.asociaciones?.nombre||'Sin colaboración';
   showModal(`<div class="modal-head"><div><h3>${esc(r.nombre)}</h3><div class="help">Ficha de seguimiento · solo equipo interno</div></div><button class="icon-btn" id="x">✕</button></div>
     <div class="patient-summary"><div><strong>${esc(pro)}</strong><small>${admin?'Profesional asignado':'Tu paciente'}</small></div><span>${esc(r.telefono)}</span></div>
-    <div class="patient-detail-meta"><span>Asociación: <strong>${esc(assoc)}</strong></span>${statusBadge(r.estado)}</div>
+    <div class="patient-detail-meta"><span>Colaboración: <strong>${esc(assoc)}</strong></span>${statusBadge(r.estado)}</div>
     <div class="progress patient-progress patient-progress-detail"><span class="progress-step ${r.consentimiento_estado==='completado'?'done':''}">Consentimiento</span><span class="progress-step ${r.formularios_estado==='completado'?'done':''}">Formularios</span><span class="progress-step ${r.estado==='cita_agendada'?'done':''}">Cita</span></div>
     <div class="detail-action-grid">
       <button class="btn btn-soft" id="detailFollow">Consentimiento / formularios</button>
@@ -404,7 +404,7 @@ async function closePatientProcess(id){
 }
 function openPatientDocuments(id){
   const r=state.requests.find(x=>x.id===id),a=r?.asociaciones,forms=(a?.formularios||[]).filter(f=>f.activo).sort((x,y)=>x.orden-y.orden);if(!r)return;
-  showModal(`<div class="modal-head"><div><h3>Seguimiento del paciente</h3><div class="help">${esc(r.nombre)}</div></div><button class="icon-btn" id="x">✕</button></div>${!a?'<div class="message error">Administración debe asignar primero una asociación para habilitar consentimiento y formularios.</div>':`<div class="patient-summary"><strong>${esc(a.nombre)}</strong><span>${esc(r.profesionales?.nombre||state.professional?.nombre||'')}</span></div><div class="divider"></div><div class="follow-block"><div><span class="follow-number">1</span><strong>Consentimiento informado</strong><small>Estado: ${esc(r.consentimiento_estado)}</small></div><div class="follow-actions"><button id="pc" class="btn btn-whatsapp" ${!a.consentimiento_url?'disabled':''}>Enviar</button><button id="pcDone" class="btn btn-success">Marcar completado</button></div></div><div class="divider"></div><div class="follow-block"><div><span class="follow-number">2</span><strong>Formularios / documentos</strong><small>Estado: ${esc(r.formularios_estado)}</small>${forms.length?`<div class="form-mini-list">${forms.map(f=>`<span>• ${esc(f.nombre)}</span>`).join('')}</div>`:'<div class="help">No hay formularios configurados.</div>'}</div><div class="follow-actions"><button id="pf" class="btn btn-whatsapp" ${r.consentimiento_estado!=='completado'||!forms.length?'disabled':''}>Enviar</button><button id="pfDone" class="btn btn-success" ${r.consentimiento_estado!=='completado'?'disabled':''}>Marcar completados</button></div></div>`}`);
+  showModal(`<div class="modal-head"><div><h3>Seguimiento del paciente</h3><div class="help">${esc(r.nombre)}</div></div><button class="icon-btn" id="x">✕</button></div>${!a?'<div class="message error">Administración debe asignar primero una colaboración para habilitar consentimiento y formularios.</div>':`<div class="patient-summary"><strong>${esc(a.nombre)}</strong><span>${esc(r.profesionales?.nombre||state.professional?.nombre||'')}</span></div><div class="divider"></div><div class="follow-block"><div><span class="follow-number">1</span><strong>Consentimiento informado</strong><small>Estado: ${esc(r.consentimiento_estado)}</small></div><div class="follow-actions"><button id="pc" class="btn btn-whatsapp" ${!a.consentimiento_url?'disabled':''}>Enviar</button><button id="pcDone" class="btn btn-success">Marcar completado</button></div></div><div class="divider"></div><div class="follow-block"><div><span class="follow-number">2</span><strong>Formularios / documentos</strong><small>Estado: ${esc(r.formularios_estado)}</small>${forms.length?`<div class="form-mini-list">${forms.map(f=>`<span>• ${esc(f.nombre)}</span>`).join('')}</div>`:'<div class="help">No hay formularios configurados.</div>'}</div><div class="follow-actions"><button id="pf" class="btn btn-whatsapp" ${r.consentimiento_estado!=='completado'||!forms.length?'disabled':''}>Enviar</button><button id="pfDone" class="btn btn-success" ${r.consentimiento_estado!=='completado'?'disabled':''}>Marcar completados</button></div></div>`}`);
   $('#x').onclick=closeModal;if(!a)return;
   $('#pc').onclick=async()=>{const link=consentLandingUrl(a.consentimiento_url,r,a);const text=`Hola ${r.nombre} 😊 Antes de continuar, revisa el consentimiento informado. Al presionar “Aceptar y continuar” se abrirá el Google Forms para registrar tu consentimiento:\n\n${link}`;window.open(`https://wa.me/${waPhone(r.telefono)}?text=${encodeURIComponent(text)}`,'_blank');await db.from('solicitudes_atencion').update({consentimiento_estado:'enviado',consentimiento_enviado_at:new Date().toISOString()}).eq('id',r.id);};
   $('#pcDone').onclick=async()=>{await db.from('solicitudes_atencion').update({consentimiento_estado:'completado',consentimiento_completado_at:new Date().toISOString()}).eq('id',r.id);closeModal();notify('Consentimiento marcado como completado.');renderPatients();};
@@ -587,20 +587,42 @@ function openAdminProfessionalForm(){
     closeModal();notify('Tu cuenta ya puede recibir pacientes.');renderProfessionals();
   };
 }
-function openProfessionalForm(p=null){showModal(`<div class="modal-head"><div><h3>${p?'Editar profesional':'Nuevo profesional'}</h3><div class="help">${p?'Puedes actualizar sus datos.':'Se creará su cuenta de acceso y su perfil profesional.'}</div></div><button class="icon-btn" id="x">✕</button></div><div class="field"><label>Nombre</label><input id="proName" value="${esc(p?.nombre||'')}"></div><div class="field"><label>WhatsApp</label><input id="proWa" inputmode="tel" value="${esc(p?.whatsapp||'')}"></div>${p?'':`<div class="field"><label>Correo de acceso</label><input id="proEmail" type="email"></div><div class="field"><label>Contraseña temporal</label><input id="proPass" type="password" minlength="8"></div>`}<button id="savePro" class="btn btn-primary btn-block">Guardar</button>`);$('#x').onclick=closeModal;$('#savePro').onclick=async()=>{const nombre=$('#proName').value.trim(),whatsapp=digits($('#proWa').value);if(!nombre||whatsapp.length<10)return alert('Completa nombre y WhatsApp.');if(p){const {error}=await db.from('profesionales').update({nombre,whatsapp}).eq('id',p.id);if(error)return alert(error.message);if(p.usuario_id===state.user.id)state.professional={...p,nombre,whatsapp};closeModal();renderProfessionals();return;}
-    const email=$('#proEmail').value.trim(),password=$('#proPass').value;if(!email||password.length<8)return alert('Escribe correo y una contraseña de al menos 8 caracteres.');const session=(await db.auth.getSession()).data.session;const res=await fetch('/api/create-user',{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${session?.access_token||''}`},body:JSON.stringify({nombre,whatsapp,email,password,rol:'profesional'})});const out=await res.json();if(!res.ok)return alert(out.error||'No se pudo crear el usuario.');closeModal();notify('Profesional y acceso creados.');renderProfessionals();};}
+function openProfessionalForm(p=null){
+  const existingOptions=state.professionals.filter(x=>!x.usuario_id && (!p||x.id!==p.id)).map(x=>`<option value="${x.id}">${esc(x.nombre)} · ${esc(x.whatsapp||'Sin WhatsApp')}</option>`).join('');
+  showModal(`<div class="modal-head"><div><h3>${p?'Editar profesional':'Nuevo acceso'}</h3><div class="help">${p?'Puedes actualizar sus datos.':'Crea el acceso y define el rol. Si es Profesional, puedes vincularlo a un perfil existente o crear uno nuevo.'}</div></div><button class="icon-btn" id="x">✕</button></div>
+    <div class="field"><label>Nombre</label><input id="proName" value="${esc(p?.nombre||'')}"></div>
+    <div class="field"><label>WhatsApp</label><input id="proWa" inputmode="tel" value="${esc(p?.whatsapp||'')}" placeholder="6561234567"></div>
+    ${p?'':`<div class="field"><label>Correo de acceso</label><input id="proEmail" type="email" placeholder="correo@ejemplo.com"></div>
+    <div class="field"><label>Contraseña temporal</label><input id="proPass" type="password" minlength="8"></div>
+    <div class="field"><label>Rol de acceso</label><select id="proRole"><option value="profesional">Profesional</option><option value="admin">Administrador</option></select></div>
+    <div class="field" id="linkProfessionalField"><label>Profesional al que se vinculará</label><select id="proLink"><option value="new">Crear un nuevo perfil profesional con estos datos</option>${existingOptions}</select><div class="help">Si el profesional ya existe en la lista, selecciónalo aquí para no duplicarlo.</div></div>`}
+    <button id="savePro" class="btn btn-primary btn-block">Guardar</button>`);
+  $('#x').onclick=closeModal;
+  if($('#proRole')) $('#proRole').onchange=()=>{$('#linkProfessionalField').classList.toggle('hidden',$('#proRole').value!=='profesional');};
+  $('#savePro').onclick=async()=>{
+    const nombre=$('#proName').value.trim(),whatsapp=digits($('#proWa').value);
+    if(!nombre||whatsapp.length<10)return alert('Completa nombre y WhatsApp.');
+    if(p){const {error}=await db.from('profesionales').update({nombre,whatsapp}).eq('id',p.id);if(error)return alert(error.message);if(p.usuario_id===state.user.id)state.professional={...p,nombre,whatsapp};closeModal();renderProfessionals();return;}
+    const email=$('#proEmail').value.trim(),password=$('#proPass').value,rol=$('#proRole').value,profesional_id=rol==='profesional'&&$('#proLink').value!=='new'?$('#proLink').value:null;
+    if(!email||password.length<8)return alert('Escribe correo y una contraseña de al menos 8 caracteres.');
+    const session=(await db.auth.getSession()).data.session;
+    const res=await fetch('/api/create-user',{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${session?.access_token||''}`},body:JSON.stringify({nombre,whatsapp,email,password,rol,profesional_id})});
+    const out=await res.json();if(!res.ok)return alert(out.error||'No se pudo crear el usuario.');
+    closeModal();notify(rol==='admin'?'Acceso de administrador creado.':'Profesional y acceso vinculados.');renderProfessionals();
+  };
+}
 
 async function renderAssociations(){
-  await loadAssociations();page.innerHTML=`<div class="section-head"><div><h2>Asociaciones</h2><p>Configura el Google Forms de consentimiento y los formularios adicionales de cada asociación.</p></div><button id="newAssoc" class="btn btn-primary">+ Nueva asociación</button></div><div class="list">${state.associations.length?state.associations.map(a=>`<article class="item"><div class="item-top"><div><h3>${esc(a.nombre)}</h3><div class="meta">Consentimiento: ${a.consentimiento_url?'Sí':'No'} · Formularios/Docs: ${a.formularios.length}</div></div><span class="badge ok">Activa</span></div><div class="actions"><button class="btn btn-soft" data-edit-assoc="${a.id}">Editar</button><button class="btn btn-light" data-forms="${a.id}">Formularios</button><button class="btn btn-danger" data-del-assoc="${a.id}">Eliminar</button></div></article>`).join(''):'<div class="empty">Todavía no hay asociaciones.</div>'}</div>`;$('#newAssoc').onclick=()=>openAssociationForm();$$('[data-edit-assoc]').forEach(b=>b.onclick=()=>openAssociationForm(state.associations.find(x=>x.id===b.dataset.editAssoc)));$$('[data-forms]').forEach(b=>b.onclick=()=>openForms(state.associations.find(x=>x.id===b.dataset.forms)));$$('[data-del-assoc]').forEach(b=>b.onclick=()=>deleteAssociation(b.dataset.delAssoc));
+  await loadAssociations();page.innerHTML=`<div class="section-head"><div><h2>Colaboraciones</h2><p>Configura el Google Forms de consentimiento y los formularios adicionales de cada colaboración.</p></div><button id="newAssoc" class="btn btn-primary">+ Nueva colaboración</button></div><div class="list">${state.associations.length?state.associations.map(a=>`<article class="item"><div class="item-top"><div><h3>${esc(a.nombre)}</h3><div class="meta">Consentimiento: ${a.consentimiento_url?'Sí':'No'} · Formularios/Docs: ${a.formularios.length}</div></div><span class="badge ok">Activa</span></div><div class="actions"><button class="btn btn-soft" data-edit-assoc="${a.id}">Editar</button><button class="btn btn-light" data-forms="${a.id}">Formularios</button><button class="btn btn-danger" data-del-assoc="${a.id}">Eliminar</button></div></article>`).join(''):'<div class="empty">Todavía no hay colaboraciones.</div>'}</div>`;$('#newAssoc').onclick=()=>openAssociationForm();$$('[data-edit-assoc]').forEach(b=>b.onclick=()=>openAssociationForm(state.associations.find(x=>x.id===b.dataset.editAssoc)));$$('[data-forms]').forEach(b=>b.onclick=()=>openForms(state.associations.find(x=>x.id===b.dataset.forms)));$$('[data-del-assoc]').forEach(b=>b.onclick=()=>deleteAssociation(b.dataset.delAssoc));
 }
 async function deleteAssociation(id){
   const a=state.associations.find(x=>x.id===id);if(!a)return;
-  if(!confirm(`¿Eliminar la asociación “${a.nombre}”? También se eliminarán sus formularios y documentos registrados en la agenda.`))return;
+  if(!confirm(`¿Eliminar la colaboración “${a.nombre}”? También se eliminarán sus formularios y documentos registrados en la agenda.`))return;
   const {error}=await db.from('asociaciones').delete().eq('id',id);
   if(error)return alert(error.message);
-  notify('Asociación eliminada.');renderAssociations();
+  notify('Colaboración eliminada.');renderAssociations();
 }
-function openAssociationForm(a=null){showModal(`<div class="modal-head"><h3>${a?'Editar':'Nueva'} asociación</h3><button class="icon-btn" id="x">✕</button></div><div class="field"><label>Nombre</label><input id="assocName" value="${esc(a?.nombre||'')}"></div><div class="field"><label>Google Forms del consentimiento informado</label><input id="assocConsent" type="url" placeholder="https://forms.gle/..." value="${esc(a?.consentimiento_url||'')}"><div class="help">El paciente primero verá una pantalla de lectura y, al aceptar, será enviado a este formulario.</div></div><button id="saveAssoc" class="btn btn-primary btn-block">Guardar</button>`);$('#x').onclick=closeModal;$('#saveAssoc').onclick=async()=>{const nombre=$('#assocName').value.trim(),consentimiento_url=$('#assocConsent').value.trim()||null;if(!nombre)return alert('Escribe el nombre.');const result=a?await db.from('asociaciones').update({nombre,consentimiento_url}).eq('id',a.id):await db.from('asociaciones').insert({nombre,consentimiento_url});if(result.error)return alert(result.error.message);closeModal();renderAssociations();};}
+function openAssociationForm(a=null){showModal(`<div class="modal-head"><h3>${a?'Editar':'Nueva'} colaboración</h3><button class="icon-btn" id="x">✕</button></div><div class="field"><label>Nombre</label><input id="assocName" value="${esc(a?.nombre||'')}"></div><div class="field"><label>Google Forms del consentimiento informado</label><input id="assocConsent" type="url" placeholder="https://forms.gle/..." value="${esc(a?.consentimiento_url||'')}"><div class="help">El paciente primero verá una pantalla de lectura y, al aceptar, será enviado a este formulario.</div></div><button id="saveAssoc" class="btn btn-primary btn-block">Guardar</button>`);$('#x').onclick=closeModal;$('#saveAssoc').onclick=async()=>{const nombre=$('#assocName').value.trim(),consentimiento_url=$('#assocConsent').value.trim()||null;if(!nombre)return alert('Escribe el nombre.');const result=a?await db.from('asociaciones').update({nombre,consentimiento_url}).eq('id',a.id):await db.from('asociaciones').insert({nombre,consentimiento_url});if(result.error)return alert(result.error.message);closeModal();renderAssociations();};}
 function openForms(a){
   showModal(`<div class="modal-head"><div><h3>Formularios y documentos</h3><div class="help">${esc(a.nombre)} · Puedes usar Google Forms o subir un archivo.</div></div><button class="icon-btn" id="x">✕</button></div>
     <div id="formsList">${a.formularios.map(f=>`<div class="item"><strong>${esc(f.nombre)}</strong><div class="meta url-line">${esc(f.url)}</div><div class="actions"><a class="btn btn-light" href="${esc(f.url)}" target="_blank" rel="noopener">Abrir</a><button class="btn btn-danger" data-del-form="${f.id}">Eliminar</button></div></div>`).join('')||'<div class="empty">Sin formularios ni documentos.</div>'}</div>
@@ -630,7 +652,7 @@ function openForms(a){
     closeModal();await renderAssociations();openForms(state.associations.find(x=>x.id===a.id));
   };
   $$('[data-del-form]').forEach(b=>b.onclick=async()=>{
-    if(!confirm('¿Eliminar este formulario o documento de la asociación? El archivo físico, si fue subido, se conserva en Storage.'))return;
+    if(!confirm('¿Eliminar este formulario o documento de la colaboración? El archivo físico, si fue subido, se conserva en Storage.'))return;
     const {error}=await db.from('formularios').delete().eq('id',b.dataset.delForm);
     if(error)return alert(error.message);
     closeModal();await renderAssociations();openForms(state.associations.find(x=>x.id===a.id));
