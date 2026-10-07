@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#087f98">
   <title>Red Humanista | Panel</title>
-  <meta name="rh-build" content="v19-base-limpia">
+  <meta name="rh-build" content="v21-ui-movil">
   <style id="panelStylesInline">
 /* ============================================================
    RED HUMANISTA · PANEL APP
@@ -210,6 +210,40 @@ input:focus,select:focus,textarea:focus{border-color:#8fcbd0;box-shadow:0 0 0 3p
 .welcome-panel h2{margin:0;color:#3d3542;font-size:22px;letter-spacing:-.35px}
 .welcome-panel p{margin:5px 0 0;color:var(--rh-muted);font-size:12px;line-height:1.4}
 @media(max-width:650px){.welcome-panel{border-radius:22px;padding:16px;margin-bottom:12px}.welcome-panel h2{font-size:20px}}
+
+/* ===== UI móvil v21 · presentación únicamente ===== */
+@media(max-width:650px){
+  body{background:#f7f8fa}
+  .container{width:calc(100% - 24px)}
+  .topbar{position:sticky;top:0;z-index:900;background:rgba(255,255,255,.97);backdrop-filter:blur(12px)}
+  .topbar-inner{min-height:72px}
+  .mini-logo{width:44px;height:44px;flex-basis:44px}
+  .topbrand strong{font-size:18px}.topbrand small{font-size:11px}
+  #logoutBtn{min-height:38px;padding:8px 14px;border-radius:14px}
+  .panel-shell{padding-top:14px;padding-bottom:104px}
+  .welcome-panel{padding:15px 16px;border-radius:20px;margin-bottom:12px;box-shadow:0 5px 18px rgba(54,62,68,.05)}
+  .welcome-panel small{font-size:11px}.welcome-panel h2{font-size:20px}.welcome-panel p{font-size:11.5px;margin-top:4px}
+  .content{padding:16px;border-radius:22px;box-shadow:0 8px 28px rgba(54,62,68,.06)}
+  .section-head{margin-bottom:14px}.section-head h2{font-size:22px}.section-head p{font-size:11.5px}
+  .daily-summary{display:grid;grid-template-columns:1fr;gap:4px;margin:0 0 12px;padding:11px 12px;border:1px solid #e4e9ea;border-radius:14px;background:#f8fbfb}
+  .daily-summary strong{font-size:12px;color:var(--rh-teal-dark)}.daily-summary span{font-size:10.5px;line-height:1.45;color:var(--rh-muted);text-align:left}
+  .stats{gap:8px;margin-bottom:14px}.stat{min-height:88px;padding:12px 13px;border-radius:17px}.stat strong{font-size:26px;margin-top:5px}.stat span{font-size:10.5px;margin-top:6px}
+  .item{padding:14px;border-radius:17px}.item h3{font-size:16px}.meta{font-size:11px}
+  .sidebar{height:68px;bottom:8px;border-radius:20px;padding:5px;box-shadow:0 10px 30px rgba(45,54,60,.15)}
+  .nav-btn{height:56px;border-radius:15px}.nav-icon{font-size:18px;height:19px;line-height:19px}.nav-label{font-size:9px;line-height:10px}.nav-btn.active{box-shadow:none}
+}
+
+/* Profesional: estas clases son generadas por panel.js y antes no tenían estilos en panel.html */
+.pro-welcome{margin:0 0 14px;padding:2px}.pro-eyebrow{display:block;color:var(--rh-teal-dark);font-size:12px;font-weight:800}.pro-welcome h2{margin:5px 0 3px;font-size:25px;letter-spacing:-.45px;color:#34313a}.pro-welcome p{margin:0;color:var(--rh-muted);font-size:12px}
+.pro-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:0 0 11px}.pro-stat{appearance:none;min-width:0;border:1px solid #e1e8e8;background:#fff;border-radius:16px;padding:12px 8px;text-align:left;color:var(--rh-text);box-shadow:0 4px 14px rgba(50,68,72,.04)}.pro-stat strong{display:block;font-size:20px;line-height:1.05;color:var(--rh-teal-dark);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.pro-stat span{display:block;margin-top:5px;color:var(--rh-muted);font-size:9.5px;font-weight:700;line-height:1.2}
+.quick-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px}.quick-action{appearance:none;min-height:44px;border:1px solid #dce7e7;background:#fff;border-radius:14px;padding:10px;display:flex;align-items:center;justify-content:center;gap:6px;color:#36575e;font-size:11px}.quick-action span{font-size:17px}.quick-action b{font-size:11px}.quick-action.primary{background:var(--rh-teal);border-color:var(--rh-teal);color:#fff}
+.pro-card{background:#fff;border:1px solid #e3e7e8;border-radius:18px;padding:14px;margin-bottom:11px;box-shadow:0 4px 16px rgba(50,68,72,.04)}.pro-card-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:10px}.pro-card-head h3{margin:0 0 3px;font-size:17px;color:#36323a}.pro-card-head p{margin:0;color:var(--rh-muted);font-size:11px}.btn-small{min-height:34px!important;padding:7px 10px!important;font-size:10px!important}.text-action,.mini-link{border:0;background:transparent;color:var(--rh-teal-dark);font-size:10.5px;font-weight:800;padding:5px}
+.home-appts,.compact-schedule-list{display:grid;gap:7px}.home-appt{appearance:none;display:grid;grid-template-columns:58px 1fr;gap:9px;align-items:center;width:100%;border:0;background:#f6faf9;border-radius:13px;padding:9px;text-align:left;color:#344b50}.home-appt strong,.home-appt small{display:block}.home-appt small{margin-top:2px;color:var(--rh-muted);font-size:10px}.home-date{font-size:10px;font-weight:800;color:var(--rh-teal-dark);text-align:center}.home-empty{padding:14px;border:1px dashed #d3dede;border-radius:13px;text-align:center;color:var(--rh-muted);font-size:11px}.home-block-note{padding:9px 10px;border-radius:11px;background:#f6faf9;color:#657378;font-size:10.5px;line-height:1.4}
+.compact-schedule{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px;background:#f7faf9;border-radius:12px}.compact-schedule strong{display:block;font-size:12px}.compact-schedule span{display:block;margin-top:2px;color:var(--rh-muted);font-size:10px}
+.profile-card{display:flex;align-items:center;gap:12px}.profile-avatar{width:48px;height:48px;flex:0 0 48px;border-radius:15px;background:var(--rh-teal-soft);color:var(--rh-teal-dark);display:grid;place-items:center;font-size:20px;font-weight:900}.profile-card h3{margin:0 0 2px;font-size:17px}.profile-card p{margin:0;color:var(--rh-muted);font-size:11px}.profile-info{display:grid;gap:0}.profile-info>div{padding:10px 0;border-bottom:1px solid #edf0f1}.profile-info>div:last-child{border-bottom:0}.profile-info span,.profile-info strong{display:block}.profile-info span{font-size:9px;color:var(--rh-muted);font-weight:800;text-transform:uppercase;letter-spacing:.05em}.profile-info strong{margin-top:3px;font-size:12.5px;color:#374b50;overflow-wrap:anywhere}
+.availability-card{display:grid;grid-template-columns:1fr auto;gap:9px;align-items:center}.availability-card h3{margin:0 0 3px;font-size:16px}.availability-card p{margin:0;color:var(--rh-muted);font-size:10.5px;line-height:1.4}.availability-card .home-block-note{grid-column:1/-1;margin:0}
+
+@media(max-width:380px){.pro-stat{padding:10px 6px}.pro-stat strong{font-size:18px}.pro-stat span{font-size:8.8px}.quick-action{padding:8px 5px}.quick-action b{font-size:10px}}
 
 </style>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
